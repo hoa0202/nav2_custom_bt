@@ -3,22 +3,22 @@
 <package format="3">
   <name>nav2_custom_bt</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
-  <maintainer email="hoa0202@naver.com">root</maintainer>
+  <description>Custom behavior tree nodes for Nav2</description>
+  <maintainer email="your@email.com">Your Name</maintainer>
   <license>TODO: License declaration</license>
 
-  <test_depend>ament_copyright</test_depend>
-  <test_depend>ament_flake8</test_depend>
-  <test_depend>ament_pep257</test_depend>
-  <test_depend>python3-pytest</test_depend>
-
-  <depend>nav2_bringup</depend>
-  <depend>rclpy</depend>
-  <depend>launch</depend>
-  <depend>launch_ros</depend>
-
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  
+  <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
+  <depend>nav2_msgs</depend>
+  <depend>nav2_behavior_tree</depend>
+  <depend>behaviortree_cpp_v3</depend>
+  <depend>nav2_util</depend>
+  <depend>pluginlib</depend>
 
   <export>
-    <build_type>ament_python</build_type>
+    <build_type>ament_cmake</build_type>
+    <nav2_custom_bt plugin="${prefix}/plugin.xml"/>
   </export>
 </package>
