@@ -16,6 +16,7 @@
   <depend>behaviortree_cpp_v3</depend>
   <depend>nav2_util</depend>
   <depend>pluginlib</depend>
+  <depend>visualization_msgs</depend>
 
   <export>
     <build_type>ament_cmake</build_type>

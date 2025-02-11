@@ -12,34 +12,42 @@ find_package(nav2_msgs REQUIRED)
 find_package(nav2_behavior_tree REQUIRED)
 find_package(behaviortree_cpp_v3 REQUIRED)
 find_package(nav2_util REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
 
 include_directories(
   include
   ${behaviortree_cpp_v3_INCLUDE_DIRS}
+  ${nav2_behavior_tree_INCLUDE_DIRS}
 )
 
 # Custom BT plugin library
-add_library(nav2_custom_bt SHARED
+add_library(${PROJECT_NAME} SHARED
   src/custom_bt_node.cpp
 )
 
-target_compile_definitions(nav2_custom_bt PRIVATE BT_PLUGIN_EXPORT)
+target_compile_definitions(${PROJECT_NAME} PRIVATE BT_PLUGIN_EXPORT)
 
-ament_target_dependencies(nav2_custom_bt
+ament_target_dependencies(${PROJECT_NAME}
   rclcpp
   rclcpp_action
   nav2_msgs
   nav2_behavior_tree
   behaviortree_cpp_v3
   nav2_util
+  nav_msgs
+  geometry_msgs
+  sensor_msgs
+  visualization_msgs
   pluginlib
 )
 
 pluginlib_export_plugin_description_file(nav2_behavior_tree plugin.xml)
 
-install(TARGETS
-  nav2_custom_bt
+install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
@@ -54,7 +62,7 @@ install(DIRECTORY bt launch params
 )
 
 ament_export_include_directories(include)
-ament_export_libraries(nav2_custom_bt)
+ament_export_libraries(${PROJECT_NAME})
 ament_export_dependencies(
   rclcpp
   rclcpp_action
@@ -62,7 +70,15 @@ ament_export_dependencies(
   nav2_behavior_tree
   behaviortree_cpp_v3
   nav2_util
+  nav_msgs
+  geometry_msgs
+  sensor_msgs
+  visualization_msgs
   pluginlib
+)
+
+target_include_directories(${PROJECT_NAME} PRIVATE
+  ${behaviortree_cpp_v3_INCLUDE_DIRS}
 )
 
 ament_package()
