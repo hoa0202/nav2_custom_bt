@@ -25,11 +25,17 @@ void CustomBTNode::initialize()
   node_ = std::make_shared<rclcpp::Node>("custom_bt_node");
   clock_ = node_->get_clock();
   
+  // scan_topic 파라미터 선언
+  node_->declare_parameter("custom_bt_node.scan_topic", "/scan");  // 기본값은 "/scan"
+  
   // 파라미터 선언
   node_->declare_parameter("custom_bt_node.forward_distance", 0.5);
   node_->declare_parameter("custom_bt_node.forward_speed", 0.2);
   node_->declare_parameter("custom_bt_node.backward_distance", 0.5);
   node_->declare_parameter("custom_bt_node.backward_speed", 0.2);
+  
+  // scan_topic 파라미터 로드
+  std::string scan_topic = node_->get_parameter("custom_bt_node.scan_topic").as_string();
   
   // 파라미터 로드
   forward_distance_ = node_->get_parameter("custom_bt_node.forward_distance").as_double();
@@ -39,6 +45,7 @@ void CustomBTNode::initialize()
   
   // 로그 추가
   RCLCPP_INFO(logger_, "로드된 파라미터 값:");
+  RCLCPP_INFO(logger_, "scan_topic: %s", scan_topic.c_str());
   RCLCPP_INFO(logger_, "forward_distance: %.2f", forward_distance_);
   RCLCPP_INFO(logger_, "forward_speed: %.2f", forward_speed_);
   RCLCPP_INFO(logger_, "backward_distance: %.2f", backward_distance_);
@@ -56,7 +63,7 @@ void CustomBTNode::initialize()
   
   // Subscriber 초기화
   scan_sub_ = node_->create_subscription<sensor_msgs::msg::LaserScan>(
-    "/scan_main", 10,
+    scan_topic, 10,
     std::bind(&CustomBTNode::scanCallback, this, std::placeholders::_1));
   
   // 폴리곤 발행 타이머
