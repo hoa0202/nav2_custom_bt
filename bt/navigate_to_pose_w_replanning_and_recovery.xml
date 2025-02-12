@@ -9,12 +9,15 @@
       <PipelineSequence name="NavigateWithReplanning">
         <RateController hz="1.0">
           <RecoveryNode number_of_retries="1" name="ComputePathToPose">
-            <ComputePathToPose goal="{goal}" path="{path}" planner_id="GridBased"/>
+            <Sequence name="ComputeAndSmoothPath">
+              <ComputePathToPose goal="{goal}" path="{path}" planner_id="GridBased"/>
+              <SmoothPath unsmoothed_path="{path}" smoothed_path="{path}" smoother_id="simple_smoother"/>
+            </Sequence>
             <ClearEntireCostmap name="ClearGlobalCostmap-Context" service_name="global_costmap/clear_entirely_global_costmap"/>
           </RecoveryNode>
         </RateController>
 
-        <RecoveryNode number_of_retries="1" name="FollowPath">
+        <RecoveryNode number_of_retries="3" name="FollowPath">
           <FollowPath path="{path}" controller_id="FollowPath"/>
           <Sequence name="RecoverySequence">
             <CustomBTNode name="my_custom_node"/>
@@ -31,7 +34,7 @@
             <ClearEntireCostmap name="ClearGlobalCostmap-Subtree" service_name="global_costmap/clear_entirely_global_costmap"/>
           </Sequence>
           <!--<Spin spin_dist="1.57"/>-->
-          <Wait wait_duration="1"/>
+          <Wait wait_duration="3"/>
           <CustomBTNode name="my_custom_node"/>
           <!--<BackUp backup_dist="0.30" backup_speed="0.05"/>-->
         </RoundRobin>

@@ -43,6 +43,20 @@ void CustomBTNode::initialize()
   backward_distance_ = node_->get_parameter("custom_bt_node.backward_distance").as_double();
   backward_speed_ = node_->get_parameter("custom_bt_node.backward_speed").as_double();
   
+  // 파라미터 선언
+  node_->declare_parameter("custom_bt_node.front_polygon_points", 
+    std::vector<double>{1.5, 1.5, 1.5, -1.5, 0.0, -0.3, 0.0, 0.3});
+  node_->declare_parameter("custom_bt_node.back_polygon_points", 
+    std::vector<double>{-1.0, 0.5, -1.0, -0.5, -0.49, -0.3, -0.49, 0.3});
+  
+  // 파라미터 로드
+  if (!node_->get_parameter("custom_bt_node.front_polygon_points", front_polygon_points_)) {
+    RCLCPP_WARN(logger_, "Using default front polygon points");
+  }
+  if (!node_->get_parameter("custom_bt_node.back_polygon_points", back_polygon_points_)) {
+    RCLCPP_WARN(logger_, "Using default back polygon points");
+  }
+
   // 로그 추가
   RCLCPP_INFO(logger_, "로드된 파라미터 값:");
   RCLCPP_INFO(logger_, "scan_topic: %s", scan_topic.c_str());
@@ -51,9 +65,19 @@ void CustomBTNode::initialize()
   RCLCPP_INFO(logger_, "backward_distance: %.2f", backward_distance_);
   RCLCPP_INFO(logger_, "backward_speed: %.2f", backward_speed_);
 
-  // 폴리곤 포인트 로드
-  loadPolygonPoints();
+  RCLCPP_INFO(logger_, "Loaded polygon points:");
+  std::string front_points_str = "Front: ";
+  for (const auto& point : front_polygon_points_) {
+    front_points_str += std::to_string(point) + " ";
+  }
+  RCLCPP_INFO(logger_, "%s", front_points_str.c_str());
   
+  std::string back_points_str = "Back: ";
+  for (const auto& point : back_polygon_points_) {
+    back_points_str += std::to_string(point) + " ";
+  }
+  RCLCPP_INFO(logger_, "%s", back_points_str.c_str());
+
   // Publisher 초기화
   cmd_vel_pub_ = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
   front_polygon_pub_ = node_->create_publisher<geometry_msgs::msg::PolygonStamped>(
@@ -366,10 +390,10 @@ void CustomBTNode::publishPolygons()
     back_polygon_msg.polygon.points.push_back(back_polygon_msg.polygon.points.front());
   }
 
-  RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, 
-    "Publishing polygons - Front: %zu points, Back: %zu points",
-    front_polygon_msg.polygon.points.size(),
-    back_polygon_msg.polygon.points.size());
+  // RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, 
+  //   "Publishing polygons - Front: %zu points, Back: %zu points",
+  //   front_polygon_msg.polygon.points.size(),
+  //   back_polygon_msg.polygon.points.size());
 
   front_polygon_pub_->publish(front_polygon_msg);
   back_polygon_pub_->publish(back_polygon_msg);
