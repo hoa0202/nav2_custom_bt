@@ -8,6 +8,9 @@
 #include <memory>
 #include <algorithm>
 #include <cmath>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 namespace nav2_custom_bt
 {
@@ -120,6 +123,29 @@ void CustomBTNode::initialize()
     scan_wait_done_ = true;
   });
   scan_wait_thread.detach();
+
+  // 새로운 파라미터 선언
+  node_->declare_parameter("custom_bt_node.sensor_type", "scan");
+  node_->declare_parameter("custom_bt_node.pointcloud_topic", "/livox/lidar");
+  node_->declare_parameter("custom_bt_node.pointcloud_min_height", 0.1);
+  node_->declare_parameter("custom_bt_node.pointcloud_max_height", 0.5);
+  
+  // 파라미터 로드
+  sensor_type_ = node_->get_parameter("custom_bt_node.sensor_type").as_string();
+  pointcloud_topic_ = node_->get_parameter("custom_bt_node.pointcloud_topic").as_string();
+  pointcloud_min_height_ = node_->get_parameter("custom_bt_node.pointcloud_min_height").as_double();
+  pointcloud_max_height_ = node_->get_parameter("custom_bt_node.pointcloud_max_height").as_double();
+  
+  // 센서 타입에 따른 구독자 생성
+  if (sensor_type_ == "scan") {
+    scan_sub_ = node_->create_subscription<sensor_msgs::msg::LaserScan>(
+      scan_topic_, 10,
+      std::bind(&CustomBTNode::scanCallback, this, std::placeholders::_1));
+  } else if (sensor_type_ == "pointcloud") {
+    pointcloud_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(
+      pointcloud_topic_, 10,
+      std::bind(&CustomBTNode::pointcloudCallback, this, std::placeholders::_1));
+  }
 }
 
 BT::NodeStatus CustomBTNode::tick()
@@ -275,13 +301,13 @@ void CustomBTNode::loadPolygonPoints()
 
 BT::PortsList CustomBTNode::providedPorts()
 {
-  return BT::PortsList({
+  return {
     BT::InputPort<std::string>("topic", "/scan_main", "Laser scan topic"),
     BT::InputPort<double>("forward_distance", 0.5, "Forward movement distance"),
     BT::InputPort<double>("forward_speed", 0.2, "Forward movement speed"),
     BT::InputPort<double>("backward_distance", 0.5, "Backward movement distance"),
     BT::InputPort<double>("backward_speed", 0.2, "Backward movement speed")
-  });
+  };
 }
 
 bool CustomBTNode::isObstacleInFrontPolygon(const sensor_msgs::msg::LaserScan::SharedPtr scan)
@@ -399,6 +425,82 @@ void CustomBTNode::publishPolygons()
   back_polygon_pub_->publish(back_polygon_msg);
 }
 
+void CustomBTNode::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
+{
+  if (!scan_received_) {
+    RCLCPP_INFO(logger_, "First pointcloud message received on topic: %s", 
+                pointcloud_sub_->get_topic_name());
+  }
+  
+  // PointCloud2를 PCL 포맷으로 변환
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::fromROSMsg(*msg, *cloud);
+  
+  // 높이 필터링된 포인트를 LaserScan 형식으로 변환
+  auto scan = std::make_shared<sensor_msgs::msg::LaserScan>();
+  scan->header = msg->header;
+  scan->angle_min = -M_PI;
+  scan->angle_max = M_PI;
+  scan->angle_increment = 0.01;  // 약 1도
+  scan->range_min = 0.1;
+  scan->range_max = 100.0;
+  
+  size_t num_angles = static_cast<size_t>((scan->angle_max - scan->angle_min) / 
+                                        scan->angle_increment);
+  scan->ranges.resize(num_angles, std::numeric_limits<float>::infinity());
+  
+  // 각 포인트를 처리
+  for (const auto& point : cloud->points) {
+    // 높이 필터링
+    if (point.z >= pointcloud_min_height_ && point.z <= pointcloud_max_height_) {
+      // x-y 평면에서의 거리와 각도 계산
+      float range = std::sqrt(point.x * point.x + point.y * point.y);
+      float angle = std::atan2(point.y, point.x);
+      
+      // 각도를 인덱스로 변환
+      int index = static_cast<int>((angle - scan->angle_min) / scan->angle_increment);
+      if (index >= 0 && index < static_cast<int>(num_angles)) {
+        // 더 가까운 거리로 업데이트
+        scan->ranges[index] = std::min(scan->ranges[index], range);
+      }
+    }
+  }
+  
+  latest_scan_ = scan;
+  scan_received_ = true;
+}
+
+bool CustomBTNode::isObstacleInPolygonPointCloud(
+  const sensor_msgs::msg::PointCloud2::SharedPtr cloud,
+  const std::vector<double>& polygon_points)
+{
+  pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::fromROSMsg(*cloud, *pcl_cloud);
+  
+  for (const auto& point : pcl_cloud->points) {
+    // 높이 필터링
+    if (point.z >= pointcloud_min_height_ && point.z <= pointcloud_max_height_) {
+      // 포인트가 폴리곤 내부에 있는지 확인
+      bool inside = false;
+      for (size_t j = 0, k = polygon_points.size() - 2; j < polygon_points.size(); k = j, j += 2) {
+        if (((polygon_points[j + 1] > point.y) != (polygon_points[k + 1] > point.y)) &&
+            (point.x < (polygon_points[k] - polygon_points[j]) * (point.y - polygon_points[j + 1]) /
+                      (polygon_points[k + 1] - polygon_points[j + 1]) + polygon_points[j])) {
+          inside = !inside;
+        }
+      }
+      
+      if (inside) {
+        RCLCPP_DEBUG(logger_, "Obstacle detected at (%.2f, %.2f, %.2f)", 
+                    point.x, point.y, point.z);
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
+
 // 소멸자 추가
 CustomBTNode::~CustomBTNode()
 {
@@ -411,6 +513,29 @@ CustomBTNode::~CustomBTNode()
   if (spin_thread_ && spin_thread_->joinable()) {
     spin_thread_->join();
   }
+}
+
+bool CustomBTNode::on_configure()
+{
+  // ... 기존 코드 ...
+  
+  // 파라미터 가져오기
+  node_->get_parameter_or("sensor_type", sensor_type_, std::string("scan"));
+  node_->get_parameter_or("scan_topic", scan_topic_, std::string("/scan"));
+  node_->get_parameter_or("pointcloud_topic", pointcloud_topic_, std::string("/points"));
+  
+  // 선택된 센서 타입에 따라 적절한 구독자 생성
+  if (sensor_type_ == "scan") {
+    scan_sub_ = node_->create_subscription<sensor_msgs::msg::LaserScan>(
+      scan_topic_, 10, 
+      std::bind(&CustomBTNode::scanCallback, this, std::placeholders::_1));
+  } else if (sensor_type_ == "pointcloud") {
+    pointcloud_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(
+      pointcloud_topic_, 10,
+      std::bind(&CustomBTNode::pointcloudCallback, this, std::placeholders::_1));
+  }
+  
+  return true;
 }
 
 }  // namespace nav2_custom_bt

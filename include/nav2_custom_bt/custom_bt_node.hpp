@@ -12,6 +12,7 @@
 #include "geometry_msgs/msg/polygon_stamped.hpp"
 #include <thread>
 #include <atomic>
+#include <sensor_msgs/msg/point_cloud2.hpp>
 
 namespace nav2_custom_bt
 {
@@ -76,14 +77,27 @@ private:
   
   void initialize();  // node_ 멤버를 사용하므로 파라미터 제거
   BT::NodeStatus tick() override;
+  bool on_configure();  // on_configure 함수 선언 추가
+
+  // 센서 타입 관련 변수들
+  std::string sensor_type_;
+  std::string scan_topic_;
+  std::string pointcloud_topic_;
+  double pointcloud_min_height_;
+  double pointcloud_max_height_;
+  
+  // 구독자 선언
+  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_sub_;
+  
+  // 콜백 함수 선언
+  void pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
+  
+  // PointCloud 처리를 위한 헬퍼 함수
+  bool isObstacleInPolygonPointCloud(const sensor_msgs::msg::PointCloud2::SharedPtr cloud,
+                                   const std::vector<double>& polygon_points);
 };
 
-static BT::PortsList providedPorts()
-{
-  return {
-    BT::InputPort<std::string>("topic", "/scan_main", "Laser scan topic")
-  };
-}
+static BT::PortsList providedPorts();  // 선언만 남기고 구현은 cpp 파일로 이동
 
 }  // namespace nav2_custom_bt
 

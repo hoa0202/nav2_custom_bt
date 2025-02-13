@@ -107,16 +107,24 @@ bt_navigator:
 
     # CustomBTNode 파라미터 추가
     custom_bt_node:
-      # front_polygon_points: [0.5, 0.5, 0.5, -0.5, 0.0, -0.3, 0.0, 0.3]  # 기존 polygon_points를 front로 변경
-      front_polygon_points: [0.3, 0.25, 0.3, -0.25, 0.0, -0.11, 0.0, 0.11]  # 후방 테스트용으로 전방범위를 확대
-      back_polygon_points: [-0.3, 0.25, -0.3, -0.25, -0.0, -0.11, -0.0, 0.11]  # 후면 폴리곤 추가
-            # footprint: "[[0.15, 0.30],[0.15, -0.30],[-0.64, -0.30],[-0.64, 0.30]]"
-      scan_topic: "/scan_main"  # scan 토픽 이름 설정
+      front_polygon_points: [0.3, 0.25, 0.3, -0.25, 0.0, -0.11, 0.0, 0.11]
+      back_polygon_points: [-0.3, 0.25, -0.3, -0.25, -0.0, -0.11, -0.0, 0.11]
+      
+      # 센서 타입 선택 파라미터 추가
+      sensor_type: "pointcloud"  # "scan" 또는 "pointcloud" 선택 가능
+      
+      # 토픽 설정
+      scan_topic: "/scan_main"  # LaserScan 데이터 토픽
+      pointcloud_topic: "/livox/lidar"  # PointCloud2 데이터 토픽
+      
+      # PointCloud 높이 필터링 파라미터
+      pointcloud_min_height: 0.1  # 최소 높이 (미터)
+      pointcloud_max_height: 0.5  # 최대 높이 (미터)
 
       forward_distance: 0.5
       forward_speed: 0.2
-      backward_distance: 0.5  # 후진 거리 추가
-      backward_speed: 0.2    # 후진 속도 추가
+      backward_distance: 0.5
+      backward_speed: 0.2
 
     # 리커버리 관련 설정
     recovery_enabled: true
@@ -308,7 +316,7 @@ collision_monitor:
     odom_frame_id: "odom"
     cmd_vel_in_topic: "cmd_vel_smoothed"
     cmd_vel_out_topic: "cmd_vel"
-    transform_tolerance: 0.5
+    transform_tolerance: 0.8
     source_timeout: 5.0
     base_shift_correction: True
     stop_pub_timeout: 2.0
@@ -352,8 +360,8 @@ collision_monitor:
     pointcloud:
       type: "pointcloud"
       topic: "/livox/lidar"
-      min_height: 0.1
-      max_height: 0.5
+      min_height: 0.3
+      max_height: 0.4
       enabled: True
 
 map_server:
