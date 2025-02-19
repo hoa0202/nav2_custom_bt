@@ -17,7 +17,7 @@
           </RecoveryNode>
         </RateController>
 
-        <RecoveryNode number_of_retries="3" name="FollowPath">
+        <RecoveryNode number_of_retries="10" name="FollowPath">
           <FollowPath path="{path}" controller_id="FollowPath"/>
           <Sequence name="RecoverySequence">
             <CustomBTNode name="my_custom_node"/>
@@ -34,7 +34,7 @@
             <ClearEntireCostmap name="ClearGlobalCostmap-Subtree" service_name="global_costmap/clear_entirely_global_costmap"/>
           </Sequence>
           <!--<Spin spin_dist="1.57"/>-->
-          <Wait wait_duration="3"/>
+          <Wait wait_duration="1"/>
           <CustomBTNode name="my_custom_node"/>
           <!--<BackUp backup_dist="0.30" backup_speed="0.05"/>-->
         </RoundRobin>

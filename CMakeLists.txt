@@ -17,12 +17,19 @@ find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
+find_package(PCL REQUIRED)
+find_package(pcl_conversions REQUIRED)
+find_package(pcl_ros REQUIRED)
 
 include_directories(
   include
   ${behaviortree_cpp_v3_INCLUDE_DIRS}
   ${nav2_behavior_tree_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
 )
+
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
 
 # Custom BT plugin library
 add_library(${PROJECT_NAME} SHARED
@@ -43,6 +50,12 @@ ament_target_dependencies(${PROJECT_NAME}
   sensor_msgs
   visualization_msgs
   pluginlib
+  pcl_conversions
+  pcl_ros
+)
+
+target_link_libraries(${PROJECT_NAME}
+  ${PCL_LIBRARIES}
 )
 
 pluginlib_export_plugin_description_file(nav2_behavior_tree plugin.xml)
@@ -75,6 +88,8 @@ ament_export_dependencies(
   sensor_msgs
   visualization_msgs
   pluginlib
+  pcl_conversions
+  pcl_ros
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

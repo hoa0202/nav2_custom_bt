@@ -12,6 +12,10 @@
 #include "geometry_msgs/msg/polygon_stamped.hpp"
 #include <thread>
 #include <atomic>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 namespace nav2_custom_bt
 {
@@ -44,6 +48,13 @@ private:
   double backward_distance_;
   double backward_speed_;
   
+  // 센서 타입 선택을 위한 변수 추가
+  std::string sensor_type_;  // "scan" 또는 "pointcloud"
+  std::string scan_topic_;   // scan 토픽 이름 추가
+  std::string pointcloud_topic_;
+  double pointcloud_min_height_;
+  double pointcloud_max_height_;
+  
   // 기존 함수 선언 수정
   bool isObstacleInFrontPolygon(const sensor_msgs::msg::LaserScan::SharedPtr scan);
   bool isObstacleInBackPolygon(const sensor_msgs::msg::LaserScan::SharedPtr scan);
@@ -59,6 +70,11 @@ private:
   
   sensor_msgs::msg::LaserScan::SharedPtr latest_scan_;
   bool scan_received_{false};
+  
+  // PointCloud 구독자 추가
+  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_sub_;
+  sensor_msgs::msg::PointCloud2::SharedPtr latest_pointcloud_;
+  bool pointcloud_received_{false};
   
   void scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg);
   void publishPolygons();
@@ -76,6 +92,15 @@ private:
   
   void initialize();  // node_ 멤버를 사용하므로 파라미터 제거
   BT::NodeStatus tick() override;
+
+  // 새로운 콜백 함수
+  void pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
+  
+  // PointCloud 데이터를 이용한 장애물 감지 함수
+  bool isObstacleInPolygonPointCloud(const sensor_msgs::msg::PointCloud2::SharedPtr cloud,
+                                   const std::vector<double>& polygon_points);
+  bool isPointInPolygon(double x, double y, const std::vector<double>& polygon_points);
+  bool on_configure();
 };
 
 static BT::PortsList providedPorts()

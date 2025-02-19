@@ -8,6 +8,9 @@
 #include <memory>
 #include <algorithm>
 #include <cmath>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 namespace nav2_custom_bt
 {
@@ -120,22 +123,73 @@ void CustomBTNode::initialize()
     scan_wait_done_ = true;
   });
   scan_wait_thread.detach();
+
+  // 센서 타입 관련 파라미터 추가
+  node_->declare_parameter("custom_bt_node.sensor_type", "scan");
+  node_->declare_parameter("custom_bt_node.pointcloud_topic", "/points");
+  node_->declare_parameter("custom_bt_node.pointcloud_min_height", 0.1);
+  node_->declare_parameter("custom_bt_node.pointcloud_max_height", 0.5);
+
+  // 파라미터 로드
+  sensor_type_ = node_->get_parameter("custom_bt_node.sensor_type").as_string();
+  pointcloud_topic_ = node_->get_parameter("custom_bt_node.pointcloud_topic").as_string();
+  pointcloud_min_height_ = node_->get_parameter("custom_bt_node.pointcloud_min_height").as_double();
+  pointcloud_max_height_ = node_->get_parameter("custom_bt_node.pointcloud_max_height").as_double();
+
+  // 센서 타입에 따른 구독자 생성
+  if (sensor_type_ == "scan") {
+    scan_sub_ = node_->create_subscription<sensor_msgs::msg::LaserScan>(
+      scan_topic, 10,
+      std::bind(&CustomBTNode::scanCallback, this, std::placeholders::_1));
+    RCLCPP_INFO(logger_, "Using LaserScan sensor type");
+  } else if (sensor_type_ == "pointcloud") {
+    pointcloud_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(
+      pointcloud_topic_, 10,
+      std::bind(&CustomBTNode::pointcloudCallback, this, std::placeholders::_1));
+    RCLCPP_INFO(logger_, "Using PointCloud sensor type");
+  }
 }
 
 BT::NodeStatus CustomBTNode::tick()
 {
-  // 스캔 데이터 대기가 완료될 때까지 RUNNING 반환
   if (!scan_wait_done_) {
     return BT::NodeStatus::RUNNING;
   }
 
-  if (!scan_received_) {
-    RCLCPP_WARN(logger_, "Failed to receive initial scan data after 5 seconds");
+  bool front_obstacle = false;
+  bool back_obstacle = false;
+
+  // 센서 데이터 유효성 체크
+  if (sensor_type_ == "scan") {
+    if (!scan_received_) {
+      RCLCPP_WARN(logger_, "Failed to receive initial scan data after 5 seconds");
+      return BT::NodeStatus::FAILURE;
+    }
+  } else if (sensor_type_ == "pointcloud") {
+    if (!pointcloud_received_) {
+      RCLCPP_WARN(logger_, "Failed to receive initial pointcloud data");
+      return BT::NodeStatus::FAILURE;
+    }
+  }
+
+  // 센서 타입에 따른 장애물 감지
+  if (sensor_type_ == "scan" && scan_received_ && latest_scan_) {
+    front_obstacle = isObstacleInFrontPolygon(latest_scan_);
+    back_obstacle = isObstacleInBackPolygon(latest_scan_);
+  } else if (sensor_type_ == "pointcloud" && pointcloud_received_ && latest_pointcloud_) {
+    front_obstacle = isObstacleInPolygonPointCloud(latest_pointcloud_, front_polygon_points_);
+    back_obstacle = isObstacleInPolygonPointCloud(latest_pointcloud_, back_polygon_points_);
+    
+    RCLCPP_INFO(logger_, "PointCloud 감지 결과 - 전방: %s, 후방: %s", 
+                front_obstacle ? "장애물 있음" : "장애물 없음",
+                back_obstacle ? "장애물 있음" : "장애물 없음");
+  } else {
+    RCLCPP_WARN(logger_, "No sensor data available");
     return BT::NodeStatus::FAILURE;
   }
 
   // 전방 장애물 체크
-  if (!isObstacleInFrontPolygon(latest_scan_)) {
+  if (!front_obstacle) {
     RCLCPP_INFO(logger_, "전방 장애물이 없습니다. 전진합니다.");
     
     // 전진 명령 발행
@@ -154,8 +208,15 @@ BT::NodeStatus CustomBTNode::tick()
       
       cmd_vel_pub_->publish(cmd_vel);
       
-      // 이동 중 장애물 체크
-      if (isObstacleInFrontPolygon(latest_scan_)) {
+      // 이동 중 장애물 체크 (센서 타입에 따라)
+      bool moving_obstacle = false;
+      if (sensor_type_ == "scan" && latest_scan_) {
+        moving_obstacle = isObstacleInFrontPolygon(latest_scan_);
+      } else if (sensor_type_ == "pointcloud" && latest_pointcloud_) {
+        moving_obstacle = isObstacleInPolygonPointCloud(latest_pointcloud_, front_polygon_points_);
+      }
+      
+      if (moving_obstacle) {
         RCLCPP_WARN(logger_, "이동 중 장애물 감지. 정지합니다.");
         cmd_vel.linear.x = 0.0;
         cmd_vel_pub_->publish(cmd_vel);
@@ -175,7 +236,7 @@ BT::NodeStatus CustomBTNode::tick()
     RCLCPP_INFO(logger_, "전방 장애물이 감지되었습니다. 후방을 확인합니다.");
     
     // 후방 장애물 체크
-    if (!isObstacleInBackPolygon(latest_scan_)) {
+    if (!back_obstacle) {
       RCLCPP_INFO(logger_, "후방 장애물이 없습니다. 후진합니다.");
       
       // 후진 명령 발행
@@ -197,8 +258,15 @@ BT::NodeStatus CustomBTNode::tick()
       while ((clock_->now() - start_time).seconds() < time_to_move && rclcpp::ok()) {
         cmd_vel_pub_->publish(cmd_vel);
         
-        // 후진 중 후방 장애물 체크
-        if (isObstacleInBackPolygon(latest_scan_)) {
+        // 후진 중 후방 장애물 체크 (센서 타입에 따라)
+        bool moving_obstacle = false;
+        if (sensor_type_ == "scan" && latest_scan_) {
+          moving_obstacle = isObstacleInBackPolygon(latest_scan_);
+        } else if (sensor_type_ == "pointcloud" && latest_pointcloud_) {
+          moving_obstacle = isObstacleInPolygonPointCloud(latest_pointcloud_, back_polygon_points_);
+        }
+        
+        if (moving_obstacle) {
           RCLCPP_WARN(logger_, "후진 중 후방 장애물 감지. 정지합니다.");
           cmd_vel.linear.x = 0.0;
           cmd_vel_pub_->publish(cmd_vel);
@@ -275,13 +343,13 @@ void CustomBTNode::loadPolygonPoints()
 
 BT::PortsList CustomBTNode::providedPorts()
 {
-  return BT::PortsList({
-    BT::InputPort<std::string>("topic", "/scan_main", "Laser scan topic"),
+  return {
+    BT::InputPort<std::string>("topic", "/scan", "Laser scan topic"),
     BT::InputPort<double>("forward_distance", 0.5, "Forward movement distance"),
     BT::InputPort<double>("forward_speed", 0.2, "Forward movement speed"),
     BT::InputPort<double>("backward_distance", 0.5, "Backward movement distance"),
     BT::InputPort<double>("backward_speed", 0.2, "Backward movement speed")
-  });
+  };
 }
 
 bool CustomBTNode::isObstacleInFrontPolygon(const sensor_msgs::msg::LaserScan::SharedPtr scan)
@@ -399,6 +467,66 @@ void CustomBTNode::publishPolygons()
   back_polygon_pub_->publish(back_polygon_msg);
 }
 
+void CustomBTNode::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
+{
+  if (!pointcloud_received_) {
+    RCLCPP_INFO(logger_, "First pointcloud message received on topic: %s", 
+                pointcloud_topic_.c_str());
+    pointcloud_received_ = true;
+  }
+  latest_pointcloud_ = msg;
+}
+
+bool CustomBTNode::isObstacleInPolygonPointCloud(
+  const sensor_msgs::msg::PointCloud2::SharedPtr cloud,
+  const std::vector<double>& polygon_points)
+{
+  // PointCloud2를 PCL 포맷으로 변환
+  pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::fromROSMsg(*cloud, *pcl_cloud);
+
+  bool is_front = (polygon_points == front_polygon_points_);  // 전방 폴리곤인지 확인
+  int points_in_polygon = 0;  // 폴리곤 내부의 점 개수
+
+  // 폴리곤 내부의 점 확인
+  for (const auto& point : pcl_cloud->points) {
+    // 높이 필터링
+    if (point.z >= pointcloud_min_height_ && point.z <= pointcloud_max_height_) {
+      // 점이 폴리곤 내부에 있는지 확인
+      if (isPointInPolygon(point.x, point.y, polygon_points)) {
+        points_in_polygon++;
+        if (points_in_polygon >= 3) {  // 최소 3개 이상의 점이 있으면 장애물로 판단
+          RCLCPP_INFO(logger_, "%s에서 장애물 감지 (점 개수: %d)", 
+                     is_front ? "전방" : "후방", points_in_polygon);
+          return true;
+        }
+      }
+    }
+  }
+  
+  RCLCPP_DEBUG(logger_, "%s 폴리곤 내 점 개수: %d", 
+               is_front ? "전방" : "후방", points_in_polygon);
+  return false;
+}
+
+bool CustomBTNode::isPointInPolygon(double x, double y, const std::vector<double>& polygon_points)
+{
+  bool inside = false;
+  size_t j = polygon_points.size() - 2;
+  for (size_t i = 0; i < polygon_points.size(); i += 2) {
+    double xi = polygon_points[i];
+    double yi = polygon_points[i + 1];
+    double xj = polygon_points[j];
+    double yj = polygon_points[j + 1];
+
+    bool intersect = ((yi > y) != (yj > y)) &&
+                    (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+    j = i;
+  }
+  return inside;
+}
+
 // 소멸자 추가
 CustomBTNode::~CustomBTNode()
 {
@@ -411,6 +539,29 @@ CustomBTNode::~CustomBTNode()
   if (spin_thread_ && spin_thread_->joinable()) {
     spin_thread_->join();
   }
+}
+
+bool CustomBTNode::on_configure()
+{
+  // ... 기존 코드 ...
+  
+  // 파라미터 가져오기
+  node_->get_parameter_or("sensor_type", sensor_type_, std::string("scan"));
+  node_->get_parameter_or("scan_topic", scan_topic_, std::string("/scan"));
+  node_->get_parameter_or("pointcloud_topic", pointcloud_topic_, std::string("/points"));
+  
+  // 선택된 센서 타입에 따라 적절한 구독자 생성
+  if (sensor_type_ == "scan") {
+    scan_sub_ = node_->create_subscription<sensor_msgs::msg::LaserScan>(
+      scan_topic_, 10, 
+      std::bind(&CustomBTNode::scanCallback, this, std::placeholders::_1));
+  } else if (sensor_type_ == "pointcloud") {
+    pointcloud_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(
+      pointcloud_topic_, 10,
+      std::bind(&CustomBTNode::pointcloudCallback, this, std::placeholders::_1));
+  }
+  
+  return true;
 }
 
 }  // namespace nav2_custom_bt
