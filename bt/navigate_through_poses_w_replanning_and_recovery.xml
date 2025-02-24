@@ -4,10 +4,10 @@
 -->
 <root main_tree_to_execute="MainTree">
   <BehaviorTree ID="MainTree">
-    <RecoveryNode number_of_retries="1" name="NavigateRecovery">
+    <RecoveryNode number_of_retries="10" name="NavigateRecovery">
       <PipelineSequence name="NavigateWithReplanning">
         <RateController hz="0.333">
-          <RecoveryNode number_of_retries="1" name="ComputePathThroughPoses">
+          <RecoveryNode number_of_retries="5" name="ComputePathThroughPoses">
             <Sequence name="ComputeAndSmoothPath">
               <ReactiveSequence>
                 <RemovePassedGoals input_goals="{goals}" output_goals="{goals}" radius="0.7"/>
