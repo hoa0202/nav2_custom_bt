@@ -112,84 +112,64 @@ void CustomBTNode::initialize()
     }
   });
 
-  // 초기화 시 스캔 데이터를 기다림 (별도 스레드에서)
-  std::thread scan_wait_thread([this]() {
+  // 초기화 시 선택된 센서 타입의 데이터를 기다림 (별도 스레드에서)
+  std::thread sensor_wait_thread([this]() {
     rclcpp::WallRate rate(10);
     auto start = node_->now();
     while (!scan_received_ && (node_->now() - start).seconds() < 5.0 && rclcpp::ok()) {
-      RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "Waiting for initial scan data...");
+      if (sensor_type_ == "scan") {
+        RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "Waiting for initial scan data...");
+      } else if (sensor_type_ == "pointcloud") {
+        RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "Waiting for initial pointcloud data...");
+      }
       rate.sleep();
     }
     scan_wait_done_ = true;
   });
-  scan_wait_thread.detach();
+  sensor_wait_thread.detach();
 
-  // 센서 타입 관련 파라미터 추가
+  // 새로운 파라미터 선언
   node_->declare_parameter("custom_bt_node.sensor_type", "scan");
-  node_->declare_parameter("custom_bt_node.pointcloud_topic", "/points");
+  node_->declare_parameter("custom_bt_node.pointcloud_topic", "/livox/lidar");
   node_->declare_parameter("custom_bt_node.pointcloud_min_height", 0.1);
   node_->declare_parameter("custom_bt_node.pointcloud_max_height", 0.5);
-
+  
   // 파라미터 로드
   sensor_type_ = node_->get_parameter("custom_bt_node.sensor_type").as_string();
   pointcloud_topic_ = node_->get_parameter("custom_bt_node.pointcloud_topic").as_string();
   pointcloud_min_height_ = node_->get_parameter("custom_bt_node.pointcloud_min_height").as_double();
   pointcloud_max_height_ = node_->get_parameter("custom_bt_node.pointcloud_max_height").as_double();
-
+  
   // 센서 타입에 따른 구독자 생성
   if (sensor_type_ == "scan") {
     scan_sub_ = node_->create_subscription<sensor_msgs::msg::LaserScan>(
-      scan_topic, 10,
+      scan_topic_, 10,
       std::bind(&CustomBTNode::scanCallback, this, std::placeholders::_1));
-    RCLCPP_INFO(logger_, "Using LaserScan sensor type");
   } else if (sensor_type_ == "pointcloud") {
     pointcloud_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(
       pointcloud_topic_, 10,
       std::bind(&CustomBTNode::pointcloudCallback, this, std::placeholders::_1));
-    RCLCPP_INFO(logger_, "Using PointCloud sensor type");
   }
 }
 
 BT::NodeStatus CustomBTNode::tick()
 {
+  // 선택된 센서 데이터 대기가 완료될 때까지 RUNNING 반환
   if (!scan_wait_done_) {
     return BT::NodeStatus::RUNNING;
   }
 
-  bool front_obstacle = false;
-  bool back_obstacle = false;
-
-  // 센서 데이터 유효성 체크
-  if (sensor_type_ == "scan") {
-    if (!scan_received_) {
+  if (!scan_received_) {
+    if (sensor_type_ == "scan") {
       RCLCPP_WARN(logger_, "Failed to receive initial scan data after 5 seconds");
-      return BT::NodeStatus::FAILURE;
+    } else if (sensor_type_ == "pointcloud") {
+      RCLCPP_WARN(logger_, "Failed to receive initial pointcloud data after 5 seconds");
     }
-  } else if (sensor_type_ == "pointcloud") {
-    if (!pointcloud_received_) {
-      RCLCPP_WARN(logger_, "Failed to receive initial pointcloud data");
-      return BT::NodeStatus::FAILURE;
-    }
-  }
-
-  // 센서 타입에 따른 장애물 감지
-  if (sensor_type_ == "scan" && scan_received_ && latest_scan_) {
-    front_obstacle = isObstacleInFrontPolygon(latest_scan_);
-    back_obstacle = isObstacleInBackPolygon(latest_scan_);
-  } else if (sensor_type_ == "pointcloud" && pointcloud_received_ && latest_pointcloud_) {
-    front_obstacle = isObstacleInPolygonPointCloud(latest_pointcloud_, front_polygon_points_);
-    back_obstacle = isObstacleInPolygonPointCloud(latest_pointcloud_, back_polygon_points_);
-    
-    RCLCPP_INFO(logger_, "PointCloud 감지 결과 - 전방: %s, 후방: %s", 
-                front_obstacle ? "장애물 있음" : "장애물 없음",
-                back_obstacle ? "장애물 있음" : "장애물 없음");
-  } else {
-    RCLCPP_WARN(logger_, "No sensor data available");
     return BT::NodeStatus::FAILURE;
   }
 
   // 전방 장애물 체크
-  if (!front_obstacle) {
+  if (!isObstacleInFrontPolygon(latest_scan_)) {
     RCLCPP_INFO(logger_, "전방 장애물이 없습니다. 전진합니다.");
     
     // 전진 명령 발행
@@ -208,15 +188,8 @@ BT::NodeStatus CustomBTNode::tick()
       
       cmd_vel_pub_->publish(cmd_vel);
       
-      // 이동 중 장애물 체크 (센서 타입에 따라)
-      bool moving_obstacle = false;
-      if (sensor_type_ == "scan" && latest_scan_) {
-        moving_obstacle = isObstacleInFrontPolygon(latest_scan_);
-      } else if (sensor_type_ == "pointcloud" && latest_pointcloud_) {
-        moving_obstacle = isObstacleInPolygonPointCloud(latest_pointcloud_, front_polygon_points_);
-      }
-      
-      if (moving_obstacle) {
+      // 이동 중 장애물 체크
+      if (isObstacleInFrontPolygon(latest_scan_)) {
         RCLCPP_WARN(logger_, "이동 중 장애물 감지. 정지합니다.");
         cmd_vel.linear.x = 0.0;
         cmd_vel_pub_->publish(cmd_vel);
@@ -236,7 +209,7 @@ BT::NodeStatus CustomBTNode::tick()
     RCLCPP_INFO(logger_, "전방 장애물이 감지되었습니다. 후방을 확인합니다.");
     
     // 후방 장애물 체크
-    if (!back_obstacle) {
+    if (!isObstacleInBackPolygon(latest_scan_)) {
       RCLCPP_INFO(logger_, "후방 장애물이 없습니다. 후진합니다.");
       
       // 후진 명령 발행
@@ -258,15 +231,8 @@ BT::NodeStatus CustomBTNode::tick()
       while ((clock_->now() - start_time).seconds() < time_to_move && rclcpp::ok()) {
         cmd_vel_pub_->publish(cmd_vel);
         
-        // 후진 중 후방 장애물 체크 (센서 타입에 따라)
-        bool moving_obstacle = false;
-        if (sensor_type_ == "scan" && latest_scan_) {
-          moving_obstacle = isObstacleInBackPolygon(latest_scan_);
-        } else if (sensor_type_ == "pointcloud" && latest_pointcloud_) {
-          moving_obstacle = isObstacleInPolygonPointCloud(latest_pointcloud_, back_polygon_points_);
-        }
-        
-        if (moving_obstacle) {
+        // 후진 중 후방 장애물 체크
+        if (isObstacleInBackPolygon(latest_scan_)) {
           RCLCPP_WARN(logger_, "후진 중 후방 장애물 감지. 정지합니다.");
           cmd_vel.linear.x = 0.0;
           cmd_vel_pub_->publish(cmd_vel);
@@ -344,7 +310,7 @@ void CustomBTNode::loadPolygonPoints()
 BT::PortsList CustomBTNode::providedPorts()
 {
   return {
-    BT::InputPort<std::string>("topic", "/scan", "Laser scan topic"),
+    BT::InputPort<std::string>("topic", "/scan_main", "Laser scan topic"),
     BT::InputPort<double>("forward_distance", 0.5, "Forward movement distance"),
     BT::InputPort<double>("forward_speed", 0.2, "Forward movement speed"),
     BT::InputPort<double>("backward_distance", 0.5, "Backward movement distance"),
@@ -469,62 +435,79 @@ void CustomBTNode::publishPolygons()
 
 void CustomBTNode::pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
 {
-  if (!pointcloud_received_) {
+  if (!scan_received_) {
     RCLCPP_INFO(logger_, "First pointcloud message received on topic: %s", 
-                pointcloud_topic_.c_str());
-    pointcloud_received_ = true;
+                pointcloud_sub_->get_topic_name());
+    scan_received_ = true;  // 포인트클라우드 데이터를 받았음을 표시
   }
-  latest_pointcloud_ = msg;
+  
+  // PointCloud2를 PCL 포맷으로 변환
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::fromROSMsg(*msg, *cloud);
+  
+  // 높이 필터링된 포인트를 LaserScan 형식으로 변환
+  auto scan = std::make_shared<sensor_msgs::msg::LaserScan>();
+  scan->header = msg->header;
+  scan->angle_min = -M_PI;
+  scan->angle_max = M_PI;
+  scan->angle_increment = 0.01;  // 약 1도
+  scan->range_min = 0.1;
+  scan->range_max = 100.0;
+  
+  size_t num_angles = static_cast<size_t>((scan->angle_max - scan->angle_min) / 
+                                        scan->angle_increment);
+  scan->ranges.resize(num_angles, std::numeric_limits<float>::infinity());
+  
+  // 각 포인트를 처리
+  for (const auto& point : cloud->points) {
+    // 높이 필터링
+    if (point.z >= pointcloud_min_height_ && point.z <= pointcloud_max_height_) {
+      // x-y 평면에서의 거리와 각도 계산
+      float range = std::sqrt(point.x * point.x + point.y * point.y);
+      float angle = std::atan2(point.y, point.x);
+      
+      // 각도를 인덱스로 변환
+      int index = static_cast<int>((angle - scan->angle_min) / scan->angle_increment);
+      if (index >= 0 && index < static_cast<int>(num_angles)) {
+        // 더 가까운 거리로 업데이트
+        scan->ranges[index] = std::min(scan->ranges[index], range);
+      }
+    }
+  }
+  
+  latest_scan_ = scan;
+  scan_received_ = true;
 }
 
 bool CustomBTNode::isObstacleInPolygonPointCloud(
   const sensor_msgs::msg::PointCloud2::SharedPtr cloud,
   const std::vector<double>& polygon_points)
 {
-  // PointCloud2를 PCL 포맷으로 변환
   pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud(new pcl::PointCloud<pcl::PointXYZ>);
   pcl::fromROSMsg(*cloud, *pcl_cloud);
-
-  bool is_front = (polygon_points == front_polygon_points_);  // 전방 폴리곤인지 확인
-  int points_in_polygon = 0;  // 폴리곤 내부의 점 개수
-
-  // 폴리곤 내부의 점 확인
+  
   for (const auto& point : pcl_cloud->points) {
     // 높이 필터링
     if (point.z >= pointcloud_min_height_ && point.z <= pointcloud_max_height_) {
-      // 점이 폴리곤 내부에 있는지 확인
-      if (isPointInPolygon(point.x, point.y, polygon_points)) {
-        points_in_polygon++;
-        if (points_in_polygon >= 3) {  // 최소 3개 이상의 점이 있으면 장애물로 판단
-          RCLCPP_INFO(logger_, "%s에서 장애물 감지 (점 개수: %d)", 
-                     is_front ? "전방" : "후방", points_in_polygon);
-          return true;
+      // 포인트가 폴리곤 내부에 있는지 확인
+      bool inside = false;
+      for (size_t j = 0, k = polygon_points.size() - 2; j < polygon_points.size(); k = j, j += 2) {
+        if (((polygon_points[j + 1] > point.y) != (polygon_points[k + 1] > point.y)) &&
+            (point.x < (polygon_points[k] - polygon_points[j]) * (point.y - polygon_points[j + 1]) /
+                      (polygon_points[k + 1] - polygon_points[j + 1]) + polygon_points[j])) {
+          inside = !inside;
         }
+      }
+      
+      if (inside) {
+        RCLCPP_DEBUG(logger_, "Obstacle detected at (%.2f, %.2f, %.2f)", 
+                    point.x, point.y, point.z);
+        return true;
       }
     }
   }
   
-  RCLCPP_DEBUG(logger_, "%s 폴리곤 내 점 개수: %d", 
-               is_front ? "전방" : "후방", points_in_polygon);
   return false;
-}
-
-bool CustomBTNode::isPointInPolygon(double x, double y, const std::vector<double>& polygon_points)
-{
-  bool inside = false;
-  size_t j = polygon_points.size() - 2;
-  for (size_t i = 0; i < polygon_points.size(); i += 2) {
-    double xi = polygon_points[i];
-    double yi = polygon_points[i + 1];
-    double xj = polygon_points[j];
-    double yj = polygon_points[j + 1];
-
-    bool intersect = ((yi > y) != (yj > y)) &&
-                    (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-    if (intersect) inside = !inside;
-    j = i;
-  }
-  return inside;
 }
 
 // 소멸자 추가
