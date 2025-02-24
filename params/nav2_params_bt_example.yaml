@@ -1,46 +1,3 @@
-# ---
-# # nav2_params_bunker_scan_v1
-# amcl:
-#   ros__parameters:
-#     use_sim_time: false
-#     alpha1: 0.2
-#     alpha2: 0.2
-#     alpha3: 0.2
-#     alpha4: 0.2
-#     alpha5: 0.2
-#     base_frame_id: "base_link"
-#     beam_skip_distance: 0.5
-#     beam_skip_error_threshold: 0.9
-#     beam_skip_threshold: 0.3
-#     do_beamskip: false
-#     global_frame_id: "map"
-#     lambda_short: 0.1
-#     laser_likelihood_max_dist: 2.0
-#     laser_max_range: 100.0
-#     laser_min_range: -1.0
-#     laser_model_type: "likelihood_field"
-#     max_beams: 60
-#     max_particles: 2000
-#     min_particles: 500
-#     odom_frame_id: "odom"
-#     pf_err: 0.05
-#     pf_z: 0.99
-#     recovery_alpha_fast: 0.0
-#     recovery_alpha_slow: 0.0
-#     resample_interval: 1
-#     robot_model_type: "nav2_amcl::DifferentialMotionModel"
-#     save_pose_rate: 0.5
-#     sigma_hit: 0.2
-#     tf_broadcast: true
-#     transform_tolerance: 1.0
-#     update_min_a: 0.2
-#     update_min_d: 0.25
-#     z_hit: 0.5
-#     z_max: 0.05
-#     z_rand: 0.5
-#     z_short: 0.05
-#     #scan_topic: scan
-
 bt_navigator:
   ros__parameters:
     use_sim_time: false
@@ -60,10 +17,8 @@ bt_navigator:
       - nav2_compute_path_through_poses_action_bt_node
       - nav2_smooth_path_action_bt_node
       - nav2_follow_path_action_bt_node
-      # - nav2_spin_action_bt_node
       - nav2_wait_action_bt_node
       - nav2_assisted_teleop_action_bt_node
-      # - nav2_back_up_action_bt_node
       - nav2_drive_on_heading_bt_node
       - nav2_clear_costmap_service_bt_node
       - nav2_is_stuck_condition_bt_node
@@ -98,8 +53,6 @@ bt_navigator:
       - nav2_controller_cancel_bt_node
       - nav2_path_longer_on_approach_bt_node
       - nav2_wait_cancel_bt_node
-      #- nav2_spin_cancel_bt_node
-      # - nav2_back_up_cancel_bt_node
       - nav2_assisted_teleop_cancel_bt_node
       - nav2_drive_on_heading_cancel_bt_node
       - nav2_is_battery_charging_condition_bt_node
@@ -121,8 +74,8 @@ bt_navigator:
 
       scan_topic: "/scan_main2"  # scan 토픽 이름 설정
 
-      pointcloud_topic: "/points"
-      pointcloud_min_height: 0.1
+      pointcloud_topic: "/livox/lidar"
+      pointcloud_min_height: 0.2
       pointcloud_max_height: 0.5
 
     # 리커버리 관련 설정
@@ -162,8 +115,8 @@ controller_server:
     general_goal_checker:
       stateful: true
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.1
-      yaw_goal_tolerance: 0.25 #0.05 #0.25
+      xy_goal_tolerance: 0.15
+      yaw_goal_tolerance: 0.15 #0.05 #0.25
 
     # FollowPath:
     #   # plugin: "nav2_rotation_shim_controller::RotationShimController"
@@ -235,8 +188,8 @@ controller_server:
       linear_granularity: 0.05
       angular_granularity: 0.025
       transform_tolerance: 0.2
-      xy_goal_tolerance: 0.1
-      yaw_goal_tolerance: 0.25
+      xy_goal_tolerance: 0.15
+      yaw_goal_tolerance: 0.15 #0.05 #0.25
       trans_stopped_velocity: 0.25
       short_circuit_trajectory_evaluation: True
       stateful: True
@@ -278,7 +231,7 @@ local_costmap:
         enabled: true
         observation_sources: scan
         scan:
-          topic: /points
+          topic: /livox/lidar
           max_obstacle_height: 1.7
           min_obstacle_height: 0.2
           clearing: true
@@ -332,7 +285,7 @@ global_costmap:
         enabled: true
         observation_sources: scan
         scan:
-          topic: /points
+          topic: /livox/lidar
           max_obstacle_height: 1.7
           min_obstacle_height: 0.2
           clearing: true
@@ -360,60 +313,60 @@ global_costmap:
         inflate_around_unknown: false
       always_send_full_costmap: true
 
-collision_monitor:
-  ros__parameters:
-    use_sim_time: True
-    base_frame_id: "base_link"
-    odom_frame_id: "odom"
-    cmd_vel_in_topic: "cmd_vel_smoothed"
-    cmd_vel_out_topic: "cmd_vel"
-    transform_tolerance: 0.5
-    source_timeout: 5.0
-    base_shift_correction: True
-    stop_pub_timeout: 2.0
-    # Polygons represent zone around the robot for "stop" and "slowdown" action types,
-    # and robot footprint for "approach" action type.
-    # Footprint could be "polygon" type with dynamically set footprint from footprint_topic
-    # or "circle" type with static footprint set by radius. "footprint_topic" parameter
-    # to be ignored in circular case.
-    polygons: ["PolygonStop", "PolygonSlow", "FootprintApproach"]
-    PolygonStop:
-      type: "polygon"
-      points: [0.3, 0.3, 0.3, -0.3, 0.0, -0.3, 0.0, 0.3]
-      action_type: "stop"
-      max_points: 3
-      visualize: True
-      polygon_pub_topic: "polygon_stop"
-      enabled: True
-    PolygonSlow:
-      type: "polygon"
-      points: [1.5, 1.0, 1.5, -1.0, -0.4, -0.4, -0.4, 0.4]
-      action_type: "slowdown"
-      max_points: 3
-      slowdown_ratio: 0.7
-      visualize: True
-      polygon_pub_topic: "polygon_slowdown"
-      enabled: True
-    FootprintApproach:
-      type: "polygon"
-      action_type: "approach"
-      footprint_topic: "/local_costmap/published_footprint"
-      time_before_collision: 2.0
-      simulation_time_step: 0.1
-      max_points: 5
-      visualize: False
-      enabled: True
-    observation_sources: ["pointcloud"]
-    scan:
-      type: "scan"
-      topic: "/scan_main2"
-      enabled: false
-    pointcloud:
-      type: "pointcloud"
-      topic: "/points2"
-      min_height: 0.1
-      max_height: 0.5
-      enabled: True
+# collision_monitor:
+#   ros__parameters:
+#     use_sim_time: True
+#     base_frame_id: "base_link"
+#     odom_frame_id: "odom"
+#     cmd_vel_in_topic: "cmd_vel_smoothed"
+#     cmd_vel_out_topic: "cmd_vel"
+#     transform_tolerance: 0.5
+#     source_timeout: 5.0
+#     base_shift_correction: True
+#     stop_pub_timeout: 2.0
+#     # Polygons represent zone around the robot for "stop" and "slowdown" action types,
+#     # and robot footprint for "approach" action type.
+#     # Footprint could be "polygon" type with dynamically set footprint from footprint_topic
+#     # or "circle" type with static footprint set by radius. "footprint_topic" parameter
+#     # to be ignored in circular case.
+#     polygons: ["PolygonStop", "PolygonSlow", "FootprintApproach"]
+#     PolygonStop:
+#       type: "polygon"
+#       points: [0.3, 0.3, 0.3, -0.3, 0.0, -0.3, 0.0, 0.3]
+#       action_type: "stop"
+#       max_points: 3
+#       visualize: True
+#       polygon_pub_topic: "polygon_stop"
+#       enabled: True
+#     PolygonSlow:
+#       type: "polygon"
+#       points: [1.5, 1.0, 1.5, -1.0, -0.4, -0.4, -0.4, 0.4]
+#       action_type: "slowdown"
+#       max_points: 3
+#       slowdown_ratio: 0.7
+#       visualize: True
+#       polygon_pub_topic: "polygon_slowdown"
+#       enabled: True
+#     FootprintApproach:
+#       type: "polygon"
+#       action_type: "approach"
+#       footprint_topic: "/local_costmap/published_footprint"
+#       time_before_collision: 2.0
+#       simulation_time_step: 0.1
+#       max_points: 5
+#       visualize: False
+#       enabled: True
+#     observation_sources: ["pointcloud"]
+#     scan:
+#       type: "scan"
+#       topic: "/scan_main2"
+#       enabled: false
+#     pointcloud:
+#       type: "pointcloud"
+#       topic: "/points2"
+#       min_height: 0.1
+#       max_height: 0.5
+#       enabled: True
 
 map_server:
   ros__parameters:
