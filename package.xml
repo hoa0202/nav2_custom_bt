@@ -3,7 +3,7 @@
 <package format="3">
   <name>nav2_custom_bt</name>
   <version>0.0.0</version>
-  <description>Custom behavior tree nodes for Nav2</description>
+  <description>Custom behavior tree node for escape recovery in Nav2</description>
   <maintainer email="your@email.com">Your Name</maintainer>
   <license>TODO: License declaration</license>
 

@@ -1,5 +1,7 @@
 <library path="nav2_custom_bt">
-  <class name="nav2_custom_bt/CustomBTNode" type="nav2_custom_bt::CustomBTNode" base_class_type="BT::SyncActionNode">
-    <description>A custom behavior tree node that logs a message</description>
+  <class name="nav2_custom_bt/CustomBTEscapeNode" type="nav2_custom_bt::CustomBTEscapeNode" base_class_type="BT::SyncActionNode">
+    <description>
+      A custom behavior tree node for escape recovery maneuvers
+    </description>
   </class>
 </library>
