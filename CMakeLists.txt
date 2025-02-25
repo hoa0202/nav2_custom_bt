@@ -32,7 +32,7 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 # Custom BT plugin library
-add_library(nav2_custom_bt SHARED
+add_library(${PROJECT_NAME} SHARED
   src/custom_bt_escape_node.cpp
 )
 

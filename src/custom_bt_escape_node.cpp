@@ -29,34 +29,34 @@ void CustomBTEscapeNode::initialize()
   clock_ = node_->get_clock();
   
   // scan_topic 파라미터 선언
-  node_->declare_parameter("custom_bt_node.scan_topic", "/scan");  // 기본값은 "/scan"
+  node_->declare_parameter("custom_bt_escape_node.scan_topic", "/scan");  // 기본값은 "/scan"
   
   // 파라미터 선언
-  node_->declare_parameter("custom_bt_node.forward_distance", 0.5);
-  node_->declare_parameter("custom_bt_node.forward_speed", 0.2);
-  node_->declare_parameter("custom_bt_node.backward_distance", 0.5);
-  node_->declare_parameter("custom_bt_node.backward_speed", 0.2);
+  node_->declare_parameter("custom_bt_escape_node.forward_distance", 0.5);
+  node_->declare_parameter("custom_bt_escape_node.forward_speed", 0.2);
+  node_->declare_parameter("custom_bt_escape_node.backward_distance", 0.5);
+  node_->declare_parameter("custom_bt_escape_node.backward_speed", 0.2);
   
   // scan_topic 파라미터 로드
-  std::string scan_topic = node_->get_parameter("custom_bt_node.scan_topic").as_string();
+  std::string scan_topic = node_->get_parameter("custom_bt_escape_node.scan_topic").as_string();
   
   // 파라미터 로드
-  forward_distance_ = node_->get_parameter("custom_bt_node.forward_distance").as_double();
-  forward_speed_ = node_->get_parameter("custom_bt_node.forward_speed").as_double();
-  backward_distance_ = node_->get_parameter("custom_bt_node.backward_distance").as_double();
-  backward_speed_ = node_->get_parameter("custom_bt_node.backward_speed").as_double();
+  forward_distance_ = node_->get_parameter("custom_bt_escape_node.forward_distance").as_double();
+  forward_speed_ = node_->get_parameter("custom_bt_escape_node.forward_speed").as_double();
+  backward_distance_ = node_->get_parameter("custom_bt_escape_node.backward_distance").as_double();
+  backward_speed_ = node_->get_parameter("custom_bt_escape_node.backward_speed").as_double();
   
   // 파라미터 선언
-  node_->declare_parameter("custom_bt_node.front_polygon_points", 
+  node_->declare_parameter("custom_bt_escape_node.front_polygon_points", 
     std::vector<double>{1.5, 1.5, 1.5, -1.5, 0.0, -0.3, 0.0, 0.3});
-  node_->declare_parameter("custom_bt_node.back_polygon_points", 
+  node_->declare_parameter("custom_bt_escape_node.back_polygon_points", 
     std::vector<double>{-1.0, 0.5, -1.0, -0.5, -0.49, -0.3, -0.49, 0.3});
   
   // 파라미터 로드
-  if (!node_->get_parameter("custom_bt_node.front_polygon_points", front_polygon_points_)) {
+  if (!node_->get_parameter("custom_bt_escape_node.front_polygon_points", front_polygon_points_)) {
     RCLCPP_WARN(logger_, "Using default front polygon points");
   }
-  if (!node_->get_parameter("custom_bt_node.back_polygon_points", back_polygon_points_)) {
+  if (!node_->get_parameter("custom_bt_escape_node.back_polygon_points", back_polygon_points_)) {
     RCLCPP_WARN(logger_, "Using default back polygon points");
   }
 
@@ -129,16 +129,16 @@ void CustomBTEscapeNode::initialize()
   sensor_wait_thread.detach();
 
   // 새로운 파라미터 선언
-  node_->declare_parameter("custom_bt_node.sensor_type", "scan");
-  node_->declare_parameter("custom_bt_node.pointcloud_topic", "/livox/lidar");
-  node_->declare_parameter("custom_bt_node.pointcloud_min_height", 0.1);
-  node_->declare_parameter("custom_bt_node.pointcloud_max_height", 0.5);
+  node_->declare_parameter("custom_bt_escape_node.sensor_type", "scan");
+  node_->declare_parameter("custom_bt_escape_node.pointcloud_topic", "/livox/lidar");
+  node_->declare_parameter("custom_bt_escape_node.pointcloud_min_height", 0.1);
+  node_->declare_parameter("custom_bt_escape_node.pointcloud_max_height", 0.5);
   
   // 파라미터 로드
-  sensor_type_ = node_->get_parameter("custom_bt_node.sensor_type").as_string();
-  pointcloud_topic_ = node_->get_parameter("custom_bt_node.pointcloud_topic").as_string();
-  pointcloud_min_height_ = node_->get_parameter("custom_bt_node.pointcloud_min_height").as_double();
-  pointcloud_max_height_ = node_->get_parameter("custom_bt_node.pointcloud_max_height").as_double();
+  sensor_type_ = node_->get_parameter("custom_bt_escape_node.sensor_type").as_string();
+  pointcloud_topic_ = node_->get_parameter("custom_bt_escape_node.pointcloud_topic").as_string();
+  pointcloud_min_height_ = node_->get_parameter("custom_bt_escape_node.pointcloud_min_height").as_double();
+  pointcloud_max_height_ = node_->get_parameter("custom_bt_escape_node.pointcloud_max_height").as_double();
   
   // 센서 타입에 따른 구독자 생성
   if (sensor_type_ == "scan") {
@@ -272,7 +272,7 @@ void CustomBTEscapeNode::loadPolygonPoints()
     }
 
     // 전방 폴리곤 파라미터 로드
-    auto front_params = parameters_client->get_parameters({"custom_bt_node.front_polygon_points"});
+    auto front_params = parameters_client->get_parameters({"custom_bt_escape_node.front_polygon_points"});
     if (!front_params.empty()) {
       front_polygon_points_ = front_params[0].as_double_array();
       RCLCPP_INFO(logger_, "Successfully loaded front polygon points");
@@ -286,7 +286,7 @@ void CustomBTEscapeNode::loadPolygonPoints()
     }
 
     // 후방 폴리곤 파라미터 로드
-    auto back_params = parameters_client->get_parameters({"custom_bt_node.back_polygon_points"});
+    auto back_params = parameters_client->get_parameters({"custom_bt_escape_node.back_polygon_points"});
     if (!back_params.empty()) {
       back_polygon_points_ = back_params[0].as_double_array();
       RCLCPP_INFO(logger_, "Successfully loaded back polygon points");
