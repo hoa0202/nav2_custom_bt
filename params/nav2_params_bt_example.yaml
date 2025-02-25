@@ -59,7 +59,7 @@ bt_navigator:
       - nav2_custom_bt
 
     # CustomBTNode 파라미터 추가
-    custom_bt_node:
+    custom_bt_escape_node:
       front_polygon_points: [0.5, 0.3, 0.5, -0.3, 0.2, -0.235, 0.2, 0.235]  # 기존 polygon_points를 front로 변경
       # footprint: "[ [0.31, 0.235], [0.31, -0.235], [-0.31, -0.235], [-0.31, 0.235] ]"
       # front_polygon_points: [1.5, 1.5, 1.5, -1.5, 0.0, -0.3, 0.0, 0.3]  # 후방 테스트용으로 전방범위를 확대
