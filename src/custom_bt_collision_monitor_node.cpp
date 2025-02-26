@@ -15,6 +15,9 @@ nav2_util::CallbackReturn CustomBTCollisionMonitorNode::on_configure(const rclcp
   this->declare_parameter("sensor_type", "scan");
   this->declare_parameter("scan_topic", "/scan");
   this->declare_parameter("pointcloud_topic", "/points");
+  this->declare_parameter("pointcloud_min_height", 0.2);  // 기본값 20cm
+  this->declare_parameter("pointcloud_max_height", 0.5);  // 기본값 50cm
+  this->declare_parameter("slow_speed_ratio", 0.2);  // 기본값 20%
   
   // 폴리곤 파라미터 선언
   this->declare_parameter("slow_polygon_points", 
@@ -26,6 +29,9 @@ nav2_util::CallbackReturn CustomBTCollisionMonitorNode::on_configure(const rclcp
   sensor_type_ = this->get_parameter("sensor_type").as_string();
   scan_topic_ = this->get_parameter("scan_topic").as_string();
   pointcloud_topic_ = this->get_parameter("pointcloud_topic").as_string();
+  pointcloud_min_height_ = this->get_parameter("pointcloud_min_height").as_double();
+  pointcloud_max_height_ = this->get_parameter("pointcloud_max_height").as_double();
+  slow_speed_ratio_ = this->get_parameter("slow_speed_ratio").as_double();
   
   // 폴리곤 파라미터 로드
   if (!this->get_parameter("slow_polygon_points", slow_polygon_points_)) {
@@ -40,6 +46,9 @@ nav2_util::CallbackReturn CustomBTCollisionMonitorNode::on_configure(const rclcp
   RCLCPP_INFO(this->get_logger(), "  sensor_type: %s", sensor_type_.c_str());
   RCLCPP_INFO(this->get_logger(), "  scan_topic: %s", scan_topic_.c_str());
   RCLCPP_INFO(this->get_logger(), "  pointcloud_topic: %s", pointcloud_topic_.c_str());
+  RCLCPP_INFO(this->get_logger(), "  pointcloud_min_height: %f", pointcloud_min_height_);
+  RCLCPP_INFO(this->get_logger(), "  pointcloud_max_height: %f", pointcloud_max_height_);
+  RCLCPP_INFO(this->get_logger(), "  slow_speed_ratio: %f", slow_speed_ratio_);
 
   std::string slow_points_str = "  slow_polygon_points: ";
   for (const auto& point : slow_polygon_points_) {
@@ -89,6 +98,11 @@ nav2_util::CallbackReturn CustomBTCollisionMonitorNode::on_configure(const rclcp
   collision_check_timer_ = this->create_wall_timer(
     std::chrono::milliseconds(50),  // 20Hz
     std::bind(&CustomBTCollisionMonitorNode::checkCollision, this));
+
+  // cmd_vel 구독자 생성
+  cmd_vel_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
+    "cmd_vel_smoothed", 1,
+    std::bind(&CustomBTCollisionMonitorNode::cmdVelCallback, this, std::placeholders::_1));
 
   RCLCPP_INFO(this->get_logger(), "Created polygon publishers on topics: %s, %s",
     slow_polygon_pub_->get_topic_name(),
@@ -180,13 +194,13 @@ void CustomBTCollisionMonitorNode::publishPolygons()
   }
 
   // 발행 상태 로그
-  RCLCPP_INFO_THROTTLE(this->get_logger(), 
-    *(this->get_clock()), 5000,
-    "Publishing polygons - Slow: %zu points, Stop: %zu points, Topics: %s, %s",
-    slow_polygon_msg.polygon.points.size(),
-    stop_polygon_msg.polygon.points.size(),
-    slow_polygon_pub_->get_topic_name(),
-    stop_polygon_pub_->get_topic_name());
+  // RCLCPP_INFO_THROTTLE(this->get_logger(), 
+  //   *(this->get_clock()), 5000,
+  //   "Publishing polygons - Slow: %zu points, Stop: %zu points, Topics: %s, %s",
+  //   slow_polygon_msg.polygon.points.size(),
+  //   stop_polygon_msg.polygon.points.size(),
+  //   slow_polygon_pub_->get_topic_name(),
+  //   stop_polygon_pub_->get_topic_name());
 
   // 폴리곤 발행
   slow_polygon_pub_->publish(slow_polygon_msg);
@@ -212,27 +226,105 @@ void CustomBTCollisionMonitorNode::pointcloudCallback(const sensor_msgs::msg::Po
                msg->width * msg->height);
 }
 
+void CustomBTCollisionMonitorNode::cmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg)
+{
+  geometry_msgs::msg::Twist modified_cmd_vel = *msg;
+  
+  // 원래 속도값 로깅
+  RCLCPP_INFO_THROTTLE(get_logger(), *(this->get_clock()), 1000,
+    "Original velocity - linear: [%f, %f, %f], angular: [%f, %f, %f]",
+    msg->linear.x, msg->linear.y, msg->linear.z,
+    msg->angular.x, msg->angular.y, msg->angular.z);
+  
+  // stop zone에 장애물이 있으면 완전 정지
+  if (obstacle_in_stop_zone_) {
+    modified_cmd_vel.linear.x = 0.0;
+    modified_cmd_vel.linear.y = 0.0;
+    modified_cmd_vel.angular.z = 0.0;
+    RCLCPP_WARN(get_logger(), "Obstacle detected in stop zone! Emergency stop!");
+    RCLCPP_INFO(get_logger(), "Modified velocity - STOP");
+  }
+  // slow zone에 장애물이 있으면 속도를 80% 감소
+  else if (obstacle_in_slow_zone_) {
+    modified_cmd_vel.linear.x *= slow_speed_ratio_;
+    modified_cmd_vel.linear.y *= slow_speed_ratio_;
+    modified_cmd_vel.angular.z *= slow_speed_ratio_;
+    RCLCPP_WARN(get_logger(), "Obstacle detected in slow zone! Reducing speed to %.1f%%", 
+      slow_speed_ratio_ * 100.0);
+    RCLCPP_INFO(get_logger(), "Modified velocity - linear: [%f, %f, %f], angular: [%f, %f, %f]",
+      modified_cmd_vel.linear.x, modified_cmd_vel.linear.y, modified_cmd_vel.linear.z,
+      modified_cmd_vel.angular.x, modified_cmd_vel.angular.y, modified_cmd_vel.angular.z);
+  }
+  
+  // cmd_vel로 재발행
+  cmd_vel_pub_->publish(modified_cmd_vel);
+}
+
 void CustomBTCollisionMonitorNode::checkCollision()
 {
-  // 선택된 센서 타입에 따라 데이터 확인
-  if (sensor_type_ == "scan") {
-    if (!scan_received_) {
-      RCLCPP_WARN_THROTTLE(this->get_logger(), *(this->get_clock()), 5000, 
-        "No scan data received yet");
-      return;
-    }
-    // scan 데이터만 사용하여 충돌 감지
-    // TODO: scan 기반 충돌 감지 로직 구현
-
-  } else if (sensor_type_ == "pointcloud") {
+  if (sensor_type_ == "pointcloud") {
     if (!pointcloud_received_) {
       RCLCPP_WARN_THROTTLE(this->get_logger(), *(this->get_clock()), 5000, 
         "No pointcloud data received yet");
       return;
     }
-    // pointcloud 데이터만 사용하여 충돌 감지
-    // TODO: pointcloud 기반 충돌 감지 로직 구현
+
+    // PointCloud를 PCL 포맷으로 변환
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::fromROSMsg(*latest_pointcloud_, *cloud);
+    
+    int points_in_slow_zone = 0;
+    int points_in_stop_zone = 0;
+    
+    // slow zone과 stop zone 내 장애물 체크
+    obstacle_in_slow_zone_ = false;
+    obstacle_in_stop_zone_ = false;
+    
+    for (const auto& point : cloud->points) {
+      // 지정된 높이 범위 내의 점들만 확인
+      if (point.z < pointcloud_min_height_ || point.z > pointcloud_max_height_) {
+        continue;
+      }
+      // stop zone 체크 (더 높은 우선순위)
+      if (isPointInPolygon(point.x, point.y, stop_polygon_points_)) {
+        obstacle_in_stop_zone_ = true;
+        points_in_stop_zone++;
+        continue;  // stop zone에 있으면 slow zone은 체크하지 않음
+      }
+      // slow zone 체크
+      if (isPointInPolygon(point.x, point.y, slow_polygon_points_)) {
+        obstacle_in_slow_zone_ = true;
+        points_in_slow_zone++;
+      }
+    }
+    if (points_in_stop_zone > 0) {
+      RCLCPP_INFO_THROTTLE(get_logger(), *(this->get_clock()), 1000,
+        "Found %d points in stop zone", points_in_stop_zone);
+    }
+    if (points_in_slow_zone > 0) {
+      RCLCPP_INFO_THROTTLE(get_logger(), *(this->get_clock()), 1000,
+        "Found %d points in slow zone", points_in_slow_zone);
+    }
   }
+}
+
+bool CustomBTCollisionMonitorNode::isPointInPolygon(
+  double x, double y, const std::vector<double>& polygon_points)
+{
+  size_t i, j;
+  bool inside = false;
+  
+  // 폴리곤의 각 변을 검사
+  for (i = 0, j = polygon_points.size() - 2; i < polygon_points.size(); i += 2) {
+    if (((polygon_points[i + 1] > y) != (polygon_points[j + 1] > y)) &&
+        (x < (polygon_points[j] - polygon_points[i]) * (y - polygon_points[i + 1]) /
+             (polygon_points[j + 1] - polygon_points[i + 1]) + polygon_points[i])) {
+      inside = !inside;
+    }
+    j = i;
+  }
+  
+  return inside;
 }
 
 nav2_util::CallbackReturn CustomBTCollisionMonitorNode::on_cleanup(const rclcpp_lifecycle::State &)

@@ -35,6 +35,8 @@ private:
   void publishPolygons();
   void scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg);
   void pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
+  void cmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg);
+  bool isPointInPolygon(double x, double y, const std::vector<double>& polygon_points);
   
   // Publishers
   rclcpp_lifecycle::LifecyclePublisher<geometry_msgs::msg::PolygonStamped>::SharedPtr slow_polygon_pub_;
@@ -44,6 +46,7 @@ private:
   // Subscribers
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_sub_;
+  rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_sub_;
   
   // Timer
   rclcpp::TimerBase::SharedPtr polygon_timer_;
@@ -53,8 +56,13 @@ private:
   std::string sensor_type_;
   std::string scan_topic_;
   std::string pointcloud_topic_;
+  double pointcloud_min_height_;  // 최소 높이
+  double pointcloud_max_height_;  // 최대 높이
+  double slow_speed_ratio_{0.2};  // 기본값 20%
   std::vector<double> slow_polygon_points_;
   std::vector<double> stop_polygon_points_;
+  bool obstacle_in_slow_zone_{false};
+  bool obstacle_in_stop_zone_{false};  // stop zone 장애물 감지 플래그 추가
   
   // Data
   sensor_msgs::msg::LaserScan::SharedPtr latest_scan_;

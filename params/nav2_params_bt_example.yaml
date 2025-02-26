@@ -90,8 +90,11 @@ custom_bt_collision_monitor:
     sensor_type: "pointcloud"
     scan_topic: "/scan_dummy"
     pointcloud_topic: "/livox/lidar"
+    pointcloud_min_height: 0.2  # 20cm
+    pointcloud_max_height: 0.5  # 50cm
+    slow_speed_ratio: 0.5  # slow zone에서의 속도 비율 (20%)
     slow_polygon_points: [0.8, 0.5, 0.8, -0.5, -0.8, -0.5, -0.8, 0.5]
-    stop_polygon_points: [0.5, 0.3, 0.5, -0.3, -0.5, -0.3, -0.5, 0.3]
+    stop_polygon_points: [0.36, 0.285, 0.36, -0.285, -0.36, -0.285, -0.36, 0.285]
     
 bt_navigator_navigate_through_poses_rclcpp_node:
   ros__parameters:
