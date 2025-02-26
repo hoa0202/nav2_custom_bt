@@ -20,7 +20,7 @@
         <RecoveryNode number_of_retries="10" name="FollowPath">
           <FollowPath path="{path}" controller_id="FollowPath"/>
           <Sequence name="RecoverySequence">
-            <CustomBTEscapeNode name="escape_recovery"/> 
+            <CustomBTEscapeNode name="escape_recovery"/>
             <ClearEntireCostmap name="ClearLocalCostmap-Context" service_name="local_costmap/clear_entirely_local_costmap"/>
           </Sequence>
         </RecoveryNode>
@@ -35,7 +35,7 @@
           </Sequence>
           <!--<Spin spin_dist="1.57"/>-->
           <Wait wait_duration="1"/>
-          <CustomBTEscapeNode name="escape_recovery"/> 
+          <CustomBTEscapeNode name="escape_recovery"/>
           <!--<BackUp backup_dist="0.30" backup_speed="0.05"/>-->
         </RoundRobin>
       </ReactiveFallback>

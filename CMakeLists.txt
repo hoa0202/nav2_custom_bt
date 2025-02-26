@@ -8,6 +8,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
 find_package(nav2_msgs REQUIRED)
 find_package(nav2_behavior_tree REQUIRED)
 find_package(behaviortree_cpp_v3 REQUIRED)
@@ -32,7 +33,7 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 # Custom BT plugin library
-add_library(${PROJECT_NAME} SHARED
+add_library(nav2_custom_bt SHARED
   src/custom_bt_escape_node.cpp
 )
 
@@ -41,6 +42,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE BT_PLUGIN_EXPORT)
 ament_target_dependencies(${PROJECT_NAME}
   rclcpp
   rclcpp_action
+  rclcpp_lifecycle
   nav2_msgs
   nav2_behavior_tree
   behaviortree_cpp_v3
@@ -79,6 +81,7 @@ ament_export_libraries(${PROJECT_NAME})
 ament_export_dependencies(
   rclcpp
   rclcpp_action
+  rclcpp_lifecycle
   nav2_msgs
   nav2_behavior_tree
   behaviortree_cpp_v3
@@ -94,6 +97,25 @@ ament_export_dependencies(
 
 target_include_directories(${PROJECT_NAME} PRIVATE
   ${behaviortree_cpp_v3_INCLUDE_DIRS}
+)
+
+add_executable(custom_bt_collision_monitor 
+  src/custom_bt_collision_monitor_main.cpp 
+  src/custom_bt_collision_monitor_node.cpp
+)
+
+ament_target_dependencies(custom_bt_collision_monitor
+  rclcpp
+  rclcpp_lifecycle
+  nav2_util
+  sensor_msgs
+  geometry_msgs
+  pcl_conversions
+  pcl_ros
+)
+
+install(TARGETS custom_bt_collision_monitor
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
 ament_package()

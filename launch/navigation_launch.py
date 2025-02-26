@@ -52,7 +52,8 @@ def generate_launch_description():
                        'behavior_server',
                        'bt_navigator',
                        'waypoint_follower',
-                       'velocity_smoother']
+                       'velocity_smoother',
+                       'custom_bt_collision_monitor']
 
     # Map fully qualified names to relative ones so the node's namespace can be prepended.
     # In case of the transforms (tf), currently, there doesn't seem to be a better alternative
@@ -197,6 +198,17 @@ def generate_launch_description():
                         [('cmd_vel', 'cmd_vel_nav'), ('cmd_vel_smoothed', 'cmd_vel')]),
                         # [('cmd_vel', 'cmd_vel_nav')]),
             Node(
+                package='nav2_custom_bt',
+                executable='custom_bt_collision_monitor',
+                name='custom_bt_collision_monitor',
+                output='screen',
+                respawn=use_respawn,
+                respawn_delay=2.0,
+                parameters=[configured_params],
+                arguments=['--ros-args', '--log-level', log_level],
+                remappings=remappings
+            ),
+            Node(
                 package='nav2_lifecycle_manager',
                 executable='lifecycle_manager',
                 name='lifecycle_manager_navigation',
@@ -265,19 +277,19 @@ def generate_launch_description():
                            [('cmd_vel', 'cmd_vel_nav'), ('cmd_vel_smoothed', 'cmd_vel')]),
                         #    [('cmd_vel', 'cmd_vel_nav')]),
             ComposableNode(
+                package='nav2_custom_bt',
+                plugin='nav2_custom_bt::CustomBTCollisionMonitorNode',
+                name='custom_bt_collision_monitor',
+                parameters=[configured_params],
+                remappings=remappings
+            ),
+            ComposableNode(
                 package='nav2_lifecycle_manager',
                 plugin='nav2_lifecycle_manager::LifecycleManager',
                 name='lifecycle_manager_navigation',
                 parameters=[{'use_sim_time': use_sim_time,
                              'autostart': autostart,
                              'node_names': lifecycle_nodes}]),
-            # ComposableNode(
-            #     package='nav2_collision_monitor',
-            #     plugin='nav2_collision_monitor::collision_monitor',
-            #     name='collision_monitor',
-            #     parameters=[configured_params],
-            #     remappings=remappings,
-            # ),
         ],
     )
 

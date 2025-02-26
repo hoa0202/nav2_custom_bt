@@ -58,16 +58,22 @@ bt_navigator:
       - nav2_is_battery_charging_condition_bt_node
       - nav2_custom_bt
 
-    # CustomBTEscapeNode 파라미터 수정
+    # CustomBTNode 파라미터 추가
     custom_bt_escape_node:
-      front_polygon_points: [0.5, 0.3, 0.5, -0.3, 0.2, -0.235, 0.2, 0.235]
-      back_polygon_points: [-0.5, 0.3, -0.5, -0.3, -0.2, -0.235, -0.2, 0.235]
+      front_polygon_points: [0.5, 0.3, 0.5, -0.3, 0.2, -0.235, 0.2, 0.235]  # 기존 polygon_points를 front로 변경
+      # footprint: "[ [0.31, 0.235], [0.31, -0.235], [-0.31, -0.235], [-0.31, 0.235] ]"
+      # front_polygon_points: [1.5, 1.5, 1.5, -1.5, 0.0, -0.3, 0.0, 0.3]  # 후방 테스트용으로 전방범위를 확대
+      back_polygon_points: [-0.5, 0.3, -0.5, -0.3, -0.2, -0.235, -0.2, 0.235]  # 후면 폴리곤 추가
+
       sensor_type: "pointcloud"  # "scan" 또는 "pointcloud"
+
       forward_distance: 0.5
       forward_speed: 0.2
       backward_distance: 0.5  # 후진 거리 추가
       backward_speed: 0.2    # 후진 속도 추가
-      scan_topic: "/scan_main2"  # scan 토픽 이름 설정
+
+      scan_topic: "/scan_dummy2"  # scan 토픽 이름 설정
+
       pointcloud_topic: "/livox/lidar"
       pointcloud_min_height: 0.2
       pointcloud_max_height: 0.5
@@ -77,7 +83,16 @@ bt_navigator:
     # recovery_attempts: 10  # 5에서 10으로 증가
     # default_recovery_attempts: 3  # 3에서 5로 증가
     # max_recovery_attempts: 5  # 5에서 15로 증가
-
+    
+# CustomBTCollisionNode 파라미터 추가
+custom_bt_collision_monitor:
+  ros__parameters:
+    sensor_type: "pointcloud"
+    scan_topic: "/scan_dummy"
+    pointcloud_topic: "/livox/lidar"
+    slow_polygon_points: [0.8, 0.5, 0.8, -0.5, -0.8, -0.5, -0.8, 0.5]
+    stop_polygon_points: [0.5, 0.3, 0.5, -0.3, -0.5, -0.3, -0.5, 0.3]
+    
 bt_navigator_navigate_through_poses_rclcpp_node:
   ros__parameters:
     use_sim_time: false
