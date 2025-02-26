@@ -231,10 +231,10 @@ void CustomBTCollisionMonitorNode::cmdVelCallback(const geometry_msgs::msg::Twis
   geometry_msgs::msg::Twist modified_cmd_vel = *msg;
   
   // 원래 속도값 로깅
-  RCLCPP_INFO_THROTTLE(get_logger(), *(this->get_clock()), 1000,
-    "Original velocity - linear: [%f, %f, %f], angular: [%f, %f, %f]",
-    msg->linear.x, msg->linear.y, msg->linear.z,
-    msg->angular.x, msg->angular.y, msg->angular.z);
+  // RCLCPP_INFO_THROTTLE(get_logger(), *(this->get_clock()), 1000,
+  //   "Original velocity - linear: [%f, %f, %f], angular: [%f, %f, %f]",
+  //   msg->linear.x, msg->linear.y, msg->linear.z,
+  //   msg->angular.x, msg->angular.y, msg->angular.z);
   
   // stop zone에 장애물이 있으면 완전 정지
   if (obstacle_in_stop_zone_) {
@@ -249,11 +249,11 @@ void CustomBTCollisionMonitorNode::cmdVelCallback(const geometry_msgs::msg::Twis
     modified_cmd_vel.linear.x *= slow_speed_ratio_;
     modified_cmd_vel.linear.y *= slow_speed_ratio_;
     modified_cmd_vel.angular.z *= slow_speed_ratio_;
-    RCLCPP_WARN(get_logger(), "Obstacle detected in slow zone! Reducing speed to %.1f%%", 
-      slow_speed_ratio_ * 100.0);
-    RCLCPP_INFO(get_logger(), "Modified velocity - linear: [%f, %f, %f], angular: [%f, %f, %f]",
-      modified_cmd_vel.linear.x, modified_cmd_vel.linear.y, modified_cmd_vel.linear.z,
-      modified_cmd_vel.angular.x, modified_cmd_vel.angular.y, modified_cmd_vel.angular.z);
+    // RCLCPP_WARN(get_logger(), "Obstacle detected in slow zone! Reducing speed to %.1f%%", 
+    //   slow_speed_ratio_ * 100.0);
+    // RCLCPP_INFO(get_logger(), "Modified velocity - linear: [%f, %f, %f], angular: [%f, %f, %f]",
+    //   modified_cmd_vel.linear.x, modified_cmd_vel.linear.y, modified_cmd_vel.linear.z,
+    //   modified_cmd_vel.angular.x, modified_cmd_vel.angular.y, modified_cmd_vel.angular.z);
   }
   
   // cmd_vel로 재발행
@@ -297,14 +297,14 @@ void CustomBTCollisionMonitorNode::checkCollision()
         points_in_slow_zone++;
       }
     }
-    if (points_in_stop_zone > 0) {
-      RCLCPP_INFO_THROTTLE(get_logger(), *(this->get_clock()), 1000,
-        "Found %d points in stop zone", points_in_stop_zone);
-    }
-    if (points_in_slow_zone > 0) {
-      RCLCPP_INFO_THROTTLE(get_logger(), *(this->get_clock()), 1000,
-        "Found %d points in slow zone", points_in_slow_zone);
-    }
+    // if (points_in_stop_zone > 0) {
+    //   RCLCPP_INFO_THROTTLE(get_logger(), *(this->get_clock()), 1000,
+    //     "Found %d points in stop zone", points_in_stop_zone);
+    // }
+    // if (points_in_slow_zone > 0) {
+    //   RCLCPP_INFO_THROTTLE(get_logger(), *(this->get_clock()), 1000,
+    //     "Found %d points in slow zone", points_in_slow_zone);
+    // }
   }
 }
 
