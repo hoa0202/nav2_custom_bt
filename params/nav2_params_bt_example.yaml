@@ -284,6 +284,8 @@ local_costmap:
           raytrace_min_range: 0.0
           obstacle_max_range: 3.0
           obstacle_min_range: 0.05
+          expected_update_rate: 0.0  # 업데이트 주기 검사 비활성화
+          tf_tolerance: 0.0  # transform 시간 검사 비활성화
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         # enabled: true
@@ -338,6 +340,8 @@ global_costmap:
           raytrace_min_range: 0.0
           obstacle_max_range: 3.0
           obstacle_min_range: 0.05
+          expected_update_rate: 0.0  # 업데이트 주기 검사 비활성화
+          tf_tolerance: 0.0  # transform 시간 검사 비활성화
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         map_subscribe_transient_local: true
