@@ -52,8 +52,8 @@ def generate_launch_description():
                        'behavior_server',
                        'bt_navigator',
                        'waypoint_follower',
-                       'velocity_smoother',
-                       'custom_bt_collision_monitor']
+                       'velocity_smoother']
+                       # 'custom_bt_collision_monitor']  # 비활성화
 
     # Map fully qualified names to relative ones so the node's namespace can be prepended.
     # In case of the transforms (tf), currently, there doesn't seem to be a better alternative
@@ -88,7 +88,7 @@ def generate_launch_description():
 
     declare_use_sim_time_cmd = DeclareLaunchArgument(
         'use_sim_time',
-        default_value='false',
+        default_value='true',
         description='Use simulation (Gazebo) clock if true')
 
     declare_params_file_cmd = DeclareLaunchArgument(
@@ -197,17 +197,18 @@ def generate_launch_description():
                 remappings=remappings +
                         # [('cmd_vel', 'cmd_vel_nav'), ('cmd_vel_smoothed', 'cmd_vel')]),
                         [('cmd_vel', 'cmd_vel_nav')]),
-            Node(
-                package='nav2_custom_bt',
-                executable='custom_bt_collision_monitor',
-                name='custom_bt_collision_monitor',
-                output='screen',
-                respawn=use_respawn,
-                respawn_delay=2.0,
-                parameters=[configured_params],
-                arguments=['--ros-args', '--log-level', log_level],
-                remappings=remappings
-            ),
+            # CustomBTCollisionMonitorNode 비활성화
+            # Node(
+            #     package='nav2_custom_bt',
+            #     executable='custom_bt_collision_monitor',
+            #     name='custom_bt_collision_monitor',
+            #     output='screen',
+            #     respawn=use_respawn,
+            #     respawn_delay=2.0,
+            #     parameters=[configured_params],
+            #     arguments=['--ros-args', '--log-level', log_level],
+            #     remappings=remappings
+            # ),
             Node(
                 package='nav2_lifecycle_manager',
                 executable='lifecycle_manager',
@@ -276,13 +277,14 @@ def generate_launch_description():
                 remappings=remappings +
                         #    [('cmd_vel', 'cmd_vel_nav'), ('cmd_vel_smoothed', 'cmd_vel')]),
                            [('cmd_vel', 'cmd_vel_nav')]),
-            ComposableNode(
-                package='nav2_custom_bt',
-                plugin='nav2_custom_bt::CustomBTCollisionMonitorNode',
-                name='custom_bt_collision_monitor',
-                parameters=[configured_params],
-                remappings=remappings
-            ),
+            # CustomBTCollisionMonitorNode 비활성화
+            # ComposableNode(
+            #     package='nav2_custom_bt',
+            #     plugin='nav2_custom_bt::CustomBTCollisionMonitorNode',
+            #     name='custom_bt_collision_monitor',
+            #     parameters=[configured_params],
+            #     remappings=remappings
+            # ),
             ComposableNode(
                 package='nav2_lifecycle_manager',
                 plugin='nav2_lifecycle_manager::LifecycleManager',
