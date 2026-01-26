@@ -1,1 +1,6 @@
-.specstory/
+# 모든 숨김 폴더 제외
+.*/
+
+# IDE/Editor 설정
+.vscode/
+.idea/
