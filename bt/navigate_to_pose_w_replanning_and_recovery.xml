@@ -5,10 +5,10 @@
 -->
 <root main_tree_to_execute="MainTree">
   <BehaviorTree ID="MainTree">
-    <RecoveryNode number_of_retries="1" name="NavigateRecovery">
+    <RecoveryNode number_of_retries="10" name="NavigateRecovery">
       <PipelineSequence name="NavigateWithReplanning">
-        <RateController hz="1.0">
-          <RecoveryNode number_of_retries="1" name="ComputePathToPose">
+        <RateController hz="0.5">
+          <RecoveryNode number_of_retries="5" name="ComputePathToPose">
             <Sequence name="ComputeAndSmoothPath">
               <ComputePathToPose goal="{goal}" path="{path}" planner_id="GridBased"/>
               <SmoothPath unsmoothed_path="{path}" smoothed_path="{path}" smoother_id="simple_smoother"/>
@@ -20,7 +20,7 @@
         <RecoveryNode number_of_retries="10" name="FollowPath">
           <FollowPath path="{path}" controller_id="FollowPath"/>
           <Sequence name="RecoverySequence">
-            <CustomBTNode name="my_custom_node"/>
+            <CustomBTEscapeNode name="escape_recovery"/>
             <ClearEntireCostmap name="ClearLocalCostmap-Context" service_name="local_costmap/clear_entirely_local_costmap"/>
           </Sequence>
         </RecoveryNode>
@@ -35,7 +35,7 @@
           </Sequence>
           <!--<Spin spin_dist="1.57"/>-->
           <Wait wait_duration="1"/>
-          <CustomBTNode name="my_custom_node"/>
+          <CustomBTEscapeNode name="escape_recovery"/>
           <!--<BackUp backup_dist="0.30" backup_speed="0.05"/>-->
         </RoundRobin>
       </ReactiveFallback>

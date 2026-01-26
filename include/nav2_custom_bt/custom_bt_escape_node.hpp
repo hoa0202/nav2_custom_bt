@@ -1,5 +1,5 @@
-#ifndef NAV2_CUSTOM_BT__CUSTOM_BT_NODE_HPP_
-#define NAV2_CUSTOM_BT__CUSTOM_BT_NODE_HPP_
+#ifndef NAV2_CUSTOM_BT__CUSTOM_BT_ESCAPE_NODE_HPP_
+#define NAV2_CUSTOM_BT__CUSTOM_BT_ESCAPE_NODE_HPP_
 
 #include <string>
 #include <vector>
@@ -20,17 +20,17 @@
 namespace nav2_custom_bt
 {
 
-class CustomBTNode : public BT::SyncActionNode
+class CustomBTEscapeNode : public BT::SyncActionNode
 {
 public:
-  CustomBTNode(
+  CustomBTEscapeNode(
     const std::string & name,
     const BT::NodeConfiguration & config);
 
   // 선언만 하고 정의는 cpp 파일로 이동
   static BT::PortsList providedPorts();
 
-  ~CustomBTNode() override;
+  ~CustomBTEscapeNode() override;
 
 private:
   // 기존 polygon_points_를 front와 back으로 분리
@@ -39,7 +39,7 @@ private:
   
   // 기존 변수들
   rclcpp::Node::SharedPtr node_;
-  rclcpp::Logger logger_{rclcpp::get_logger("CustomBTNode")};
+  rclcpp::Logger logger_{rclcpp::get_logger("CustomBTEscapeNode")};
   rclcpp::Clock::SharedPtr clock_;
   
   double forward_distance_;
@@ -112,4 +112,4 @@ static BT::PortsList providedPorts()
 
 }  // namespace nav2_custom_bt
 
-#endif  // NAV2_CUSTOM_BT__CUSTOM_BT_NODE_HPP_ 
+#endif  // NAV2_CUSTOM_BT__CUSTOM_BT_ESCAPE_NODE_HPP_ 
