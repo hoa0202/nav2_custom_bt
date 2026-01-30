@@ -11,7 +11,7 @@ find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(nav2_msgs REQUIRED)
 find_package(nav2_behavior_tree REQUIRED)
-find_package(behaviortree_cpp_v3 REQUIRED)
+find_package(behaviortree_cpp REQUIRED)
 find_package(nav2_util REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
@@ -24,7 +24,7 @@ find_package(pcl_ros REQUIRED)
 
 include_directories(
   include
-  ${behaviortree_cpp_v3_INCLUDE_DIRS}
+  ${behaviortree_cpp_INCLUDE_DIRS}
   ${nav2_behavior_tree_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
 )
@@ -45,7 +45,7 @@ ament_target_dependencies(${PROJECT_NAME}
   rclcpp_lifecycle
   nav2_msgs
   nav2_behavior_tree
-  behaviortree_cpp_v3
+  behaviortree_cpp
   nav2_util
   nav_msgs
   geometry_msgs
@@ -84,7 +84,7 @@ ament_export_dependencies(
   rclcpp_lifecycle
   nav2_msgs
   nav2_behavior_tree
-  behaviortree_cpp_v3
+  behaviortree_cpp
   nav2_util
   nav_msgs
   geometry_msgs
@@ -96,7 +96,7 @@ ament_export_dependencies(
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
-  ${behaviortree_cpp_v3_INCLUDE_DIRS}
+  ${behaviortree_cpp_INCLUDE_DIRS}
 )
 
 add_executable(custom_bt_collision_monitor 

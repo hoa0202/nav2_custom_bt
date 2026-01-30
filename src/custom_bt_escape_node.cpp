@@ -1,5 +1,5 @@
 #include "nav2_custom_bt/custom_bt_escape_node.hpp"
-#include "behaviortree_cpp_v3/bt_factory.h"
+#include "behaviortree_cpp/bt_factory.h"
 #include "nav2_util/node_utils.hpp"
 #include "visualization_msgs/msg/marker.hpp"
 #include "geometry_msgs/msg/polygon_stamped.hpp"
@@ -547,7 +547,7 @@ bool CustomBTEscapeNode::on_configure()
 
 }  // namespace nav2_custom_bt
 
-#include "behaviortree_cpp_v3/bt_factory.h"
+#include "behaviortree_cpp/bt_factory.h"
 BT_REGISTER_NODES(factory)
 {
   factory.registerNodeType<nav2_custom_bt::CustomBTEscapeNode>("CustomBTEscapeNode");

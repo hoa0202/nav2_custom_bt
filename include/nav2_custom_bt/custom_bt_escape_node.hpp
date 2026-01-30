@@ -3,7 +3,7 @@
 
 #include <string>
 #include <vector>
-#include "behaviortree_cpp_v3/action_node.h"
+#include "behaviortree_cpp/action_node.h"
 #include "rclcpp/rclcpp.hpp"
 #include "nav2_util/node_utils.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
@@ -102,13 +102,6 @@ private:
   bool isPointInPolygon(double x, double y, const std::vector<double>& polygon_points);
   bool on_configure();
 };
-
-static BT::PortsList providedPorts()
-{
-  return {
-    BT::InputPort<std::string>("topic", "/scan_main", "Laser scan topic")
-  };
-}
 
 }  // namespace nav2_custom_bt
 
