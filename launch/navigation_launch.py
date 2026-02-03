@@ -88,7 +88,7 @@ def generate_launch_description():
 
     declare_use_sim_time_cmd = DeclareLaunchArgument(
         'use_sim_time',
-        default_value='true',
+        default_value='false',
         description='Use simulation (Gazebo) clock if true')
 
     declare_params_file_cmd = DeclareLaunchArgument(
@@ -207,6 +207,17 @@ def generate_launch_description():
                 parameters=[configured_params],
                 arguments=['--ros-args', '--log-level', log_level],
                 remappings=remappings
+            ),
+            Node(
+                package='nav2_custom_bt',
+                executable='cmd_vel_filter.py',
+                name='cmd_vel_filter',
+                output='screen',
+                parameters=[{
+                    'min_angular_vel': 0.5,
+                    'input_topic': '/cmd_vel_smoothed',
+                    'output_topic': '/cmd_vel'
+                }],
             ),
             Node(
                 package='nav2_lifecycle_manager',

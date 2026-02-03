@@ -3,7 +3,7 @@ bt_navigator:
     use_sim_time: true
     global_frame: map
     robot_base_frame: base_link
-    odom_topic: /odom
+    odom_topic: /liorf/mapping/odometry
     bt_loop_duration: 10
     default_server_timeout: 20
     # 'default_nav_through_poses_bt_xml' and 'default_nav_to_pose_bt_xml'
@@ -31,9 +31,9 @@ bt_navigator:
       backward_distance: 0.5  # 후진 거리 추가
       backward_speed: 0.2    # 후진 속도 추가
 
-      scan_topic: "/scan_main"  # scan 토픽 이름 설정
+      scan_topic: "/scan_main_dummy"  # scan 토픽 이름 설정
 
-      pointcloud_topic: "/livox/lidar_dummy"
+      pointcloud_topic: "/livox/lidar"
       pointcloud_min_height: 0.2
       pointcloud_max_height: 1.7
 
@@ -47,9 +47,9 @@ bt_navigator:
 custom_bt_collision_monitor:
   ros__parameters:
     use_sim_time: true
-    sensor_type: "scan"
-    scan_topic: "/scan_main"
-    pointcloud_topic: "/livox/lidar_dummy"
+    sensor_type: "pointcloud"
+    scan_topic: "/scan_main_dummy"
+    pointcloud_topic: "/livox/lidar"
     pointcloud_min_height: 0.2  # 20cm
     pointcloud_max_height: 1.7  # 50cm
     slow_speed_ratio: 0.6  # slow zone에서의 속도 비율 (20%)
@@ -115,11 +115,11 @@ controller_server:
             # 기존 파라미터 조정
             time_steps: 50
             model_dt: 0.1
-            wz_std: 0.6                     # 회전 표준편차 증가로 더 적극적인 회전 허용
+            wz_std: 1.0                     # 회전 탐색 범위 증가
             vx_max: 0.3
             vx_min: -0.3
             vy_max: 0.3
-            wz_max: 0.4                     # 최대 회전 속도 증가
+            wz_max: 2.5                     # 최대 각속도 증가 (rad/s)
 
             iteration_count: 1
             temperature: 0.3
@@ -235,13 +235,13 @@ local_costmap:
         enabled: true
         observation_sources: scan
         scan:
-          topic: /scan_main
-          sensor_frame: "laser_frame"
+          topic: /livox/lidar
+          sensor_frame: "livox_frame"
           max_obstacle_height: 1.7
           min_obstacle_height: 0.0
           clearing: true
           marking: true
-          data_type: "LaserScan"
+          data_type: "PointCloud2"
           raytrace_max_range: 3.5
           raytrace_min_range: 0.0
           obstacle_max_range: 3.0
@@ -293,13 +293,13 @@ global_costmap:
         enabled: true
         observation_sources: scan
         scan:
-          topic: /scan_main
-          sensor_frame: "laser_frame"
+          topic: /livox/lidar
+          sensor_frame: "livox_frame"
           max_obstacle_height: 1.7
           min_obstacle_height: 0.0
           clearing: true
           marking: true
-          data_type: "LaserScan"
+          data_type: "PointCloud2"
           raytrace_max_range: 3.5
           raytrace_min_range: 0.0
           obstacle_max_range: 3.0
@@ -310,8 +310,8 @@ global_costmap:
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         map_subscribe_transient_local: true
-        map_topic: /rtabmap/map
-        # map_topic: /grid_map
+        # map_topic: /rtabmap/map
+        map_topic: /grid_map
         # enabled: true
         # subscribe_to_updates: true
         # transform_tolerance: 0.1
@@ -455,7 +455,7 @@ velocity_smoother:
     min_velocity: [-0.5, 0.0, -1.0]
     max_accel: [1.0, 0.0, 0.5]
     max_decel: [-1.0, 0.0, -0.5]
-    odom_topic: "liorf/mapping/odometry"
+    odom_topic: "/liorf/mapping/odometry"
     odom_duration: 0.1
     deadband_velocity: [0.0, 0.0, 0.0]
     velocity_timeout: 1.0

@@ -76,6 +76,12 @@ install(DIRECTORY bt launch params
   DESTINATION share/${PROJECT_NAME}
 )
 
+# Python scripts
+install(PROGRAMS
+  scripts/cmd_vel_filter.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_export_include_directories(include)
 ament_export_libraries(${PROJECT_NAME})
 ament_export_dependencies(
