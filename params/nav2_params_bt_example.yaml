@@ -318,7 +318,7 @@ global_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         # enabled: true
-        inflation_radius: 0.8
+        inflation_radius: 1.0  # must be > circumscribed_radius (0.907)
         cost_scaling_factor: 8.0
         track_unknown_space: true
         enabled: true
