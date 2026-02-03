@@ -7,7 +7,7 @@
     <RecoveryNode number_of_retries="10" name="NavigateRecovery">
       <PipelineSequence name="NavigateWithReplanning">
         <RateController hz="0.333">
-          <RecoveryNode number_of_retries="5" name="ComputePathThroughPoses">
+          <RecoveryNode number_of_retries="5" name="ComputePathThroughPosesRecovery">
             <Sequence name="ComputeAndSmoothPath">
               <ReactiveSequence>
                 <RemovePassedGoals input_goals="{goals}" output_goals="{goals}" radius="0.7"/>
@@ -19,7 +19,7 @@
           </RecoveryNode>
         </RateController>
 
-        <RecoveryNode number_of_retries="10" name="FollowPath">
+        <RecoveryNode number_of_retries="10" name="FollowPathRecovery">
           <FollowPath path="{path}" controller_id="FollowPath"/>
           <Sequence name="RecoverySequence">
             <CustomBTEscapeNode name="escape_recovery"/>
