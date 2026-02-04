@@ -15,7 +15,7 @@ class CmdVelFilter(Node):
         super().__init__('cmd_vel_filter')
         
         # 파라미터 선언
-        self.declare_parameter('min_angular_vel', 0.5)  # 최소 각속도 (rad/s)
+        self.declare_parameter('min_angular_vel', 0.85)  # 최소 각속도 (rad/s)
         self.declare_parameter('input_topic', '/cmd_vel_nav')  # Nav2 출력
         self.declare_parameter('output_topic', '/cmd_vel')  # 로봇 입력
         
@@ -41,12 +41,12 @@ class CmdVelFilter(Node):
         out.linear = msg.linear
         out.angular = msg.angular
         
-        # 각속도가 0이 아니고, 절대값이 min_angular_vel 미만이면 최소값으로 올림
-        if msg.angular.z != 0.0 and abs(msg.angular.z) < self.min_angular_vel:
-            # 부호 유지하면서 최소값 적용
-            out.angular.z = math.copysign(self.min_angular_vel, msg.angular.z)
+        # 각속도가 0이 아니면, 부호 방향으로 boost_angular_vel 만큼 더함
+        if msg.angular.z != 0.0:
+            # 부호 유지하면서 boost 값 추가
+            out.angular.z = msg.angular.z + math.copysign(self.min_angular_vel, msg.angular.z)
             self.get_logger().debug(
-                f'Angular vel adjusted: {msg.angular.z:.3f} -> {out.angular.z:.3f}'
+                f'Angular vel boosted: {msg.angular.z:.3f} -> {out.angular.z:.3f}'
             )
         
         self.pub.publish(out)

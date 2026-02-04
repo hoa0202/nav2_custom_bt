@@ -159,7 +159,7 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[configured_params],
                 arguments=['--ros-args', '--log-level', log_level],
-                remappings=remappings),
+                remappings=remappings + [('cmd_vel', 'cmd_vel_raw')]),
             Node(
                 package='nav2_bt_navigator',
                 executable='bt_navigator',
@@ -174,7 +174,7 @@ def generate_launch_description():
                     }
                 ],
                 arguments=['--ros-args', '--log-level', log_level],
-                remappings=remappings),
+                remappings=remappings + [('cmd_vel', 'cmd_vel_raw')]),
             Node(
                 package='nav2_waypoint_follower',
                 executable='waypoint_follower',
@@ -195,8 +195,7 @@ def generate_launch_description():
                 parameters=[configured_params],
                 arguments=['--ros-args', '--log-level', log_level],
                 remappings=remappings +
-                        # [('cmd_vel', 'cmd_vel_nav'), ('cmd_vel_smoothed', 'cmd_vel')]),
-                        [('cmd_vel', 'cmd_vel_nav')]),
+                        [('cmd_vel', 'cmd_vel_nav'), ('cmd_vel_smoothed', 'cmd_vel_raw')]),
             Node(
                 package='nav2_custom_bt',
                 executable='custom_bt_collision_monitor',
@@ -206,7 +205,7 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[configured_params],
                 arguments=['--ros-args', '--log-level', log_level],
-                remappings=remappings
+                remappings=remappings + [('cmd_vel', 'cmd_vel_raw')]
             ),
             Node(
                 package='nav2_custom_bt',
@@ -214,8 +213,8 @@ def generate_launch_description():
                 name='cmd_vel_filter',
                 output='screen',
                 parameters=[{
-                    'min_angular_vel': 0.5,
-                    'input_topic': '/cmd_vel_smoothed',
+                    'min_angular_vel': 0.85,
+                    'input_topic': '/cmd_vel_raw',
                     'output_topic': '/cmd_vel'
                 }],
             ),
@@ -266,13 +265,13 @@ def generate_launch_description():
                 plugin='behavior_server::BehaviorServer',
                 name='behavior_server',
                 parameters=[configured_params],
-                remappings=remappings),
+                remappings=remappings + [('cmd_vel', 'cmd_vel_raw')]),
             ComposableNode(
                 package='nav2_bt_navigator',
                 plugin='nav2_bt_navigator::BtNavigator',
                 name='bt_navigator',
                 parameters=[configured_params],
-                remappings=remappings),
+                remappings=remappings + [('cmd_vel', 'cmd_vel_raw')]),
             ComposableNode(
                 package='nav2_waypoint_follower',
                 plugin='nav2_waypoint_follower::WaypointFollower',
@@ -285,14 +284,13 @@ def generate_launch_description():
                 name='velocity_smoother',
                 parameters=[configured_params],
                 remappings=remappings +
-                        #    [('cmd_vel', 'cmd_vel_nav'), ('cmd_vel_smoothed', 'cmd_vel')]),
-                           [('cmd_vel', 'cmd_vel_nav')]),
+                           [('cmd_vel', 'cmd_vel_nav'), ('cmd_vel_smoothed', 'cmd_vel_raw')]),
             ComposableNode(
                 package='nav2_custom_bt',
                 plugin='nav2_custom_bt::CustomBTCollisionMonitorNode',
                 name='custom_bt_collision_monitor',
                 parameters=[configured_params],
-                remappings=remappings
+                remappings=remappings + [('cmd_vel', 'cmd_vel_raw')]
             ),
             ComposableNode(
                 package='nav2_lifecycle_manager',

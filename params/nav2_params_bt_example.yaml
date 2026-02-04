@@ -115,11 +115,11 @@ controller_server:
             # 기존 파라미터 조정
             time_steps: 50
             model_dt: 0.1
-            wz_std: 1.0                     # 회전 탐색 범위 증가
+            wz_std: 0.6                     # 회전 표준편차 증가로 더 적극적인 회전 허용
             vx_max: 0.3
             vx_min: -0.3
             vy_max: 0.3
-            wz_max: 2.5                     # 최대 각속도 증가 (rad/s)
+            wz_max: 0.4                     # 최대 회전 속도 증가
 
             iteration_count: 1
             temperature: 0.3
@@ -237,7 +237,7 @@ local_costmap:
         scan:
           topic: /livox/lidar
           sensor_frame: "livox_frame"
-          max_obstacle_height: 1.7
+          max_obstacle_height: 0.5
           min_obstacle_height: 0.0
           clearing: true
           marking: true
@@ -295,7 +295,7 @@ global_costmap:
         scan:
           topic: /livox/lidar
           sensor_frame: "livox_frame"
-          max_obstacle_height: 1.7
+          max_obstacle_height: 0.5
           min_obstacle_height: 0.0
           clearing: true
           marking: true
