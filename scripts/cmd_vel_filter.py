@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 cmd_vel 필터 노드
-각속도(wz)가 min_angular_vel 미만이면 최소값으로 올려서 마찰을 극복
+- 각속도(wz) boost: 마찰 극복용
+- Rate Limiter: 급격한 변화 방지
 """
 
 import rclpy
@@ -15,15 +16,21 @@ class CmdVelFilter(Node):
         super().__init__('cmd_vel_filter')
         
         # 파라미터 선언
-        self.declare_parameter('min_angular_vel', 0.85)  # 최소 각속도 (rad/s)
-        self.declare_parameter('input_topic', '/cmd_vel_nav')  # Nav2 출력
-        self.declare_parameter('output_topic', '/cmd_vel')  # 로봇 입력
+        self.declare_parameter('min_angular_vel', 0.55)  # boost 값 (rad/s)
+        self.declare_parameter('max_angular_rate', 0.05)  # 스텝당 최대 변화량 (rad/s)
+        self.declare_parameter('input_topic', '/cmd_vel_nav')
+        self.declare_parameter('output_topic', '/cmd_vel')
         
         self.min_angular_vel = self.get_parameter('min_angular_vel').value
+        self.max_angular_rate = self.get_parameter('max_angular_rate').value
         input_topic = self.get_parameter('input_topic').value
         output_topic = self.get_parameter('output_topic').value
         
-        self.get_logger().info(f'min_angular_vel: {self.min_angular_vel}')
+        # 이전 출력 각속도 저장 (Rate Limiter용)
+        self.prev_angular_z = 0.0
+        
+        self.get_logger().info(f'min_angular_vel (boost): {self.min_angular_vel}')
+        self.get_logger().info(f'max_angular_rate: {self.max_angular_rate}')
         self.get_logger().info(f'Subscribing to: {input_topic}')
         self.get_logger().info(f'Publishing to: {output_topic}')
         
@@ -36,18 +43,30 @@ class CmdVelFilter(Node):
         )
         self.pub = self.create_publisher(Twist, output_topic, 10)
     
+    def apply_rate_limit(self, target: float, current: float) -> float:
+        """Rate Limiter: 스텝당 최대 변화량 제한"""
+        diff = target - current
+        if abs(diff) > self.max_angular_rate:
+            return current + math.copysign(self.max_angular_rate, diff)
+        return target
+    
     def cmd_vel_callback(self, msg: Twist):
         out = Twist()
         out.linear = msg.linear
         out.angular = msg.angular
         
-        # 각속도가 0이 아니면, 부호 방향으로 boost_angular_vel 만큼 더함
-        if msg.angular.z != 0.0:
-            # 부호 유지하면서 boost 값 추가
-            out.angular.z = msg.angular.z + math.copysign(self.min_angular_vel, msg.angular.z)
-            self.get_logger().debug(
-                f'Angular vel boosted: {msg.angular.z:.3f} -> {out.angular.z:.3f}'
-            )
+        # 1. 각속도 boost (0이 아닐 때)
+        target_wz = msg.angular.z
+        if target_wz != 0.0:
+            target_wz = msg.angular.z + math.copysign(self.min_angular_vel, msg.angular.z)
+        
+        # 2. Rate Limiter 적용
+        out.angular.z = self.apply_rate_limit(target_wz, self.prev_angular_z)
+        self.prev_angular_z = out.angular.z
+        
+        self.get_logger().debug(
+            f'wz: {msg.angular.z:.3f} -> boost: {target_wz:.3f} -> rate_limited: {out.angular.z:.3f}'
+        )
         
         self.pub.publish(out)
 

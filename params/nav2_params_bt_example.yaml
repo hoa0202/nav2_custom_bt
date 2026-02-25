@@ -33,7 +33,7 @@ bt_navigator:
 
       scan_topic: "/scan_main_dummy"  # scan 토픽 이름 설정
 
-      pointcloud_topic: "/livox/lidar"
+      pointcloud_topic: "/livox/lidar_front"
       pointcloud_min_height: 0.2
       pointcloud_max_height: 1.7
 
@@ -49,7 +49,7 @@ custom_bt_collision_monitor:
     use_sim_time: true
     sensor_type: "pointcloud"
     scan_topic: "/scan_main_dummy"
-    pointcloud_topic: "/livox/lidar"
+    pointcloud_topic: "/livox/lidar_front"
     pointcloud_min_height: 0.2  # 20cm
     pointcloud_max_height: 1.7  # 50cm
     slow_speed_ratio: 0.6  # slow zone에서의 속도 비율 (20%)
@@ -235,8 +235,8 @@ local_costmap:
         enabled: true
         observation_sources: scan
         scan:
-          topic: /livox/lidar
-          sensor_frame: "livox_frame"
+          topic: /livox/lidar_front
+          sensor_frame: "livox_frame_front"
           max_obstacle_height: 0.5
           min_obstacle_height: 0.0
           clearing: true
@@ -293,8 +293,8 @@ global_costmap:
         enabled: true
         observation_sources: scan
         scan:
-          topic: /livox/lidar
-          sensor_frame: "livox_frame"
+          topic: /livox/lidar_front
+          sensor_frame: "livox_frame_front"
           max_obstacle_height: 0.5
           min_obstacle_height: 0.0
           clearing: true
